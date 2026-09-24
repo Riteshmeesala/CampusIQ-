@@ -67,6 +67,9 @@ public class ExamService {
     @Transactional
     public Exam updateExam(Long id, ExamRequest req) {
         Exam exam = getById(id);
+        if (req == null) {
+            return examRepository.save(exam);
+        }
         if (req.getExamName() != null) exam.setExamName(req.getExamName());
         if (req.getScheduledDate() != null) exam.setScheduledDate(req.getScheduledDate());
         if (req.getDurationMinutes() != null) exam.setDurationMinutes(req.getDurationMinutes());

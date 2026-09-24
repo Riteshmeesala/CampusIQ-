@@ -125,4 +125,20 @@ public class ResultController {
         return ResponseEntity.ok(ApiResponse.success(
                 resultService.getExamResults(examId)));
     }
+
+    @GetMapping("/student/{studentId}/semester/{semester}")
+    @PreAuthorize("hasAnyRole('ADMIN','FACULTY','STUDENT')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> studentSemesterGpa(
+            @PathVariable Long studentId,
+            @PathVariable String semester) {
+        int sem = 1;
+        try {
+            String digits = semester != null ? semester.replaceAll("[^0-9]", "") : "";
+            if (!digits.isEmpty()) {
+                sem = Integer.parseInt(digits);
+            }
+        } catch (Exception ignored) {}
+        return ResponseEntity.ok(ApiResponse.success(
+                resultService.getSemesterGPA(studentId, sem)));
+    }
 }

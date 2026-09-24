@@ -61,4 +61,25 @@ public class ExamController {
     public ResponseEntity<ApiResponse<List<Exam>>> byCourse(@PathVariable Long courseId) {
         return ResponseEntity.ok(ApiResponse.success(examService.getByCourse(courseId)));
     }
+
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<Exam>>> myExams() {
+        // Returns all exams — student-specific filtering can be added later
+        return ResponseEntity.ok(ApiResponse.success(examService.getAllExams()));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('FACULTY','ADMIN')")
+    public ResponseEntity<ApiResponse<Exam>> updateStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        Exam exam = examService.getById(id);
+        try {
+            exam.setStatus(Exam.ExamStatus.valueOf(status.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Invalid status: " + status));
+        }
+        return ResponseEntity.ok(ApiResponse.success(examService.updateExam(id, null)));
+    }
 }

@@ -363,6 +363,8 @@ export default function AppLayout() {
     { icon: <PaymentOutlined fontSize="small" />,    label: 'Tuition & Billing',   path: '/student/fees' },
     { icon: <EventNoteOutlined fontSize="small" />,  label: 'Examination Registry',path: '/student/exams' },
     { icon: <GradeOutlined fontSize='small'/>,       label: 'GPA & CGPA Release',  path: '/admin/publish-cgpa' },
+    { icon: <AssessmentOutlined fontSize="small" />, label: 'Publish Results',     path: '/admin/publish-results' },
+    { icon: <CampaignOutlined fontSize="small" />,   label: 'Broadcast Email',     path: '/admin/broadcast-email' },
     { icon: <CampaignOutlined fontSize="small" />,   label: 'Campus Bulletins',    path: '/announcements' },
     { icon: <ChatBubbleOutline fontSize="small" />,  label: 'Campus Intelligence', path: '/chatbot' },
   ];
@@ -515,6 +517,7 @@ export default function AppLayout() {
       items: [
         { icon: <DescriptionOutlined fontSize="small" />, label: 'Subjects & Curriculum', path: '/faculty/subjects-curriculum', hasSub: true },
         { icon: <AssessmentOutlined fontSize="small" />, label: 'Marks Ledger', path: '/admin/academic-records', hasSub: true },
+        { icon: <AssessmentOutlined fontSize="small" />, label: 'Publish Marks / Results', path: '/faculty/publish-results' },
       ]
     }
   ];

@@ -37,6 +37,8 @@ import StudentAcademicRecordsPage from './pages/admin/StudentAcademicRecordsPage
 import FacultySubjectAssignmentPage from './pages/admin/FacultySubjectAssignmentPage';
 import StudentQRRegistrationPage from './pages/admin/StudentQRRegistrationPage';
 import PublicStudentRegistrationPage from './pages/auth/PublicStudentRegistrationPage';
+import PublishResultPage from './pages/results/PublishResultPage';
+import BroadcastEmailPage from './pages/admin/BroadcastEmailPage';
 
 // Dedicated Independent Student ERP Modules
 import StudentApplyLeavesPage from './pages/student/StudentApplyLeavesPage';
@@ -304,6 +306,24 @@ export default function App() {
               element={<ProtectedRoute roles={['ADMIN']}><StudentQRRegistrationPage /></ProtectedRoute>} />
             <Route path="/admin/publish-cgpa" 
               element={<ProtectedRoute roles={['ADMIN']}><PublishCGPAPage /></ProtectedRoute> }/> 
+            <Route path="/admin/publish-results"
+              element={<ProtectedRoute roles={['ADMIN','FACULTY']}><PublishResultPage /></ProtectedRoute>} />
+            <Route path="/admin/broadcast-email"
+              element={<ProtectedRoute roles={['ADMIN']}><BroadcastEmailPage /></ProtectedRoute>} />
+            <Route path="/faculty/publish-results"
+              element={<ProtectedRoute roles={['ADMIN','FACULTY']}><PublishResultPage /></ProtectedRoute>} />
+            <Route path="/publish-results"
+              element={<ProtectedRoute roles={['ADMIN','FACULTY']}><PublishResultPage /></ProtectedRoute>} />
+
+            {/* Direct fallback routes for core pages */}
+            <Route path="/attendance"
+              element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><AttendancePage /></ProtectedRoute>} />
+            <Route path="/fees"
+              element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><FeePage /></ProtectedRoute>} />
+            <Route path="/exams"
+              element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><ExamPage /></ProtectedRoute>} />
+            <Route path="/results"
+              element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><ResultPage /></ProtectedRoute>} />
           </Route>
         </Route>
 
