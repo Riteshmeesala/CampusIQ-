@@ -1,8 +1,31 @@
 import axios from 'axios';
 import { broadcastDataChange, DATA_SYNC_EVENTS } from './dataSync';
 
-// Backend runs at :8080/api  (server.servlet.context-path=/api in application.properties)
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+// Resolves API Base URL:
+// 1. URL parameter: ?apiUrl=https://your-gateway.onrender.com/api (persists to localStorage)
+// 2. Local storage: campusiq_api_url
+// 3. Build-time environment variable: REACT_APP_API_BASE_URL
+// 4. Default fallback: http://localhost:8080/api
+export const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const queryApi = params.get('apiUrl');
+      if (queryApi) {
+        const clean = queryApi.replace(/\/+$/, '');
+        localStorage.setItem('campusiq_api_url', clean);
+        return clean;
+      }
+      const saved = localStorage.getItem('campusiq_api_url');
+      if (saved) return saved;
+    } catch {
+      // ignore
+    }
+  }
+  return process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // Create axios instance
 const api = axios.create({
@@ -14,6 +37,7 @@ const api = axios.create({
 // ── REQUEST INTERCEPTOR: attach JWT to every request ──────────────────────
 api.interceptors.request.use(
   (config) => {
+    config.baseURL = getApiBaseUrl();
     const token = localStorage.getItem('campusiq_token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;

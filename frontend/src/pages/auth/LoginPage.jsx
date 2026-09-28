@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getApiBaseUrl } from '../../services/api';
 import {
   LockOutlined, PersonOutline, School, AdminPanelSettings,
   SupervisorAccount, AutoAwesome, AccountBalance, Close,
@@ -117,8 +118,13 @@ export default function LoginPage() {
       const dest = DASH[result.role] || '/';
       navigate(dest, { replace: true });
     } catch (err) {
-      const msg = err?.response?.data?.message;
-      setError(msg || 'Invalid username or password. Please try again.');
+      if (!err?.response) {
+        const currentUrl = getApiBaseUrl();
+        setError(`Unable to connect to backend server (${currentUrl}). Please verify the backend is online and configured.`);
+      } else {
+        const msg = err?.response?.data?.message;
+        setError(msg || 'Invalid username or password. Please try again.');
+      }
     } finally {
       setBusy(false);
     }
@@ -137,7 +143,11 @@ export default function LoginPage() {
       const dest = DASH[result.role] || '/';
       navigate(dest, { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.message || 'Invalid or expired OTP');
+      if (!err?.response) {
+        setError(`Unable to connect to backend server (${getApiBaseUrl()}).`);
+      } else {
+        setError(err?.response?.data?.message || 'Invalid or expired OTP');
+      }
     } finally {
       setBusy(false);
     }
@@ -667,6 +677,35 @@ export default function LoginPage() {
               marginTop: 2
             }}>
               © 2026 — CampusIQ+ Smart Campus Intelligence Platform
+            </div>
+            <div style={{
+              fontSize: 10.5,
+              color: '#94a3b8',
+              marginTop: 8
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const current = getApiBaseUrl();
+                  const next = window.prompt('CampusIQ+ Backend API Gateway URL:\n(Enter your live Render Gateway URL, e.g. https://your-gateway.onrender.com/api)', current);
+                  if (next !== null && next.trim()) {
+                    localStorage.setItem('campusiq_api_url', next.trim().replace(/\/+$/, ''));
+                    window.location.reload();
+                  }
+                }}
+                title="Tap to view or change backend API Gateway URL"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  fontSize: 10.5,
+                  cursor: 'pointer',
+                  textDecoration: 'underline dotted',
+                  padding: '2px 4px'
+                }}
+              >
+                ⚙️ Backend API: {getApiBaseUrl()}
+              </button>
             </div>
           </div>
         </div>

@@ -1,21 +1,22 @@
 # ==============================================================================
-# CampusIQ+ API Gateway — Default Configuration (Local Development)
+# CampusIQ+ API Gateway — Render Production Profile
 #
-# Profile Strategy:
-# - Default profile (local): Uses Eureka service discovery (lb:// routes)
-# - Render profile (production): Uses application-render.yml with Eureka DISABLED
-#   and direct HTTPS service URLs configured via environment variables.
+# Activated when: SPRING_PROFILES_ACTIVE=render
+#
+# Architecture:
+# - Local development (default profile): Uses Eureka service discovery (lb:// routes)
+# - Render production (render profile): Completely bypasses Eureka and routes
+#   traffic directly to backend microservices via HTTPS environment variables.
 # ==============================================================================
 
 server:
   port: ${PORT:8080}
 
 spring:
-  application:
-    name: api-gateway
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:default}
   cloud:
+    # Completely disable DiscoveryClient auto-configuration in Render profile
+    discovery:
+      enabled: false
     gateway:
       globalcors:
         cors-configurations:
@@ -38,70 +39,70 @@ spring:
             maxAge: 3600
       discovery:
         locator:
-          enabled: true
-          lowerCaseServiceId: true
+          # Disable Eureka dynamic discovery locator in Render profile
+          enabled: false
       routes:
         # Auth & Users Route (/api/...)
         - id: auth-service-route
-          uri: ${AUTH_SERVICE_URL:lb://auth-service}
+          uri: ${AUTH_SERVICE_URL:https://auth-service-placeholder}
           predicates:
             - Path=/api/auth/**, /api/users/**, /api/registrations/**
 
         # Academic Services Route (/api/...)
         - id: academic-service-route
-          uri: ${ACADEMIC_SERVICE_URL:lb://academic-service}
+          uri: ${ACADEMIC_SERVICE_URL:https://academic-service-placeholder}
           predicates:
             - Path=/api/courses/**, /api/attendance/**, /api/timetable/**, /api/timetables/**, /api/schedule/**, /api/faculty-schedules/**, /api/faculty-assignments/**, /api/student-services/**, /api/leaves/**, /api/certificates/**, /api/grievances/**, /api/mentoring/**, /api/surveys/**, /api/library/**, /api/placements/**, /api/projects/**, /api/campus-services/**, /api/warnings/**, /api/department-events/**
 
         # Assessment Services Route (/api/...)
         - id: assessment-service-route
-          uri: ${ASSESSMENT_SERVICE_URL:lb://assessment-service}
+          uri: ${ASSESSMENT_SERVICE_URL:https://assessment-service-placeholder}
           predicates:
             - Path=/api/exams/**, /api/results/**, /api/cgpa/**, /api/analytics/**, /api/academic-records/**
 
         # Finance Services Route (/api/...)
         - id: finance-service-route
-          uri: ${FINANCE_SERVICE_URL:lb://finance-service}
+          uri: ${FINANCE_SERVICE_URL:https://finance-service-placeholder}
           predicates:
             - Path=/api/fees/**, /api/payments/**, /api/payroll/**
 
         # Campus AI & Notifications Route (/api/...)
         - id: campus-ai-service-route
-          uri: ${CAMPUS_AI_SERVICE_URL:lb://campus-ai-service}
+          uri: ${CAMPUS_AI_SERVICE_URL:https://campus-ai-service-placeholder}
           predicates:
             - Path=/api/chatbot/**, /api/announcements/**, /api/notifications/**, /api/ai/**
 
         # Direct Routes (Testing Convenience: auto-prefixes /api if omitted)
         - id: auth-service-direct-route
-          uri: ${AUTH_SERVICE_URL:lb://auth-service}
+          uri: ${AUTH_SERVICE_URL:https://auth-service-placeholder}
           predicates:
             - Path=/auth/**, /users/**, /registrations/**
           filters:
             - PrefixPath=/api
 
         - id: academic-service-direct-route
-          uri: ${ACADEMIC_SERVICE_URL:lb://academic-service}
+          uri: ${ACADEMIC_SERVICE_URL:https://academic-service-placeholder}
           predicates:
             - Path=/courses/**, /attendance/**, /timetable/**, /timetables/**, /schedule/**, /faculty-schedules/**, /faculty-assignments/**, /student-services/**, /leaves/**, /certificates/**, /grievances/**, /mentoring/**, /surveys/**, /library/**, /placements/**, /projects/**, /campus-services/**, /warnings/**, /department-events/**
           filters:
             - PrefixPath=/api
 
         - id: assessment-service-direct-route
-          uri: ${ASSESSMENT_SERVICE_URL:lb://assessment-service}
+          uri: ${ASSESSMENT_SERVICE_URL:https://assessment-service-placeholder}
           predicates:
             - Path=/exams/**, /results/**, /cgpa/**, /analytics/**, /academic-records/**
           filters:
             - PrefixPath=/api
 
         - id: finance-service-direct-route
-          uri: ${FINANCE_SERVICE_URL:lb://finance-service}
+          uri: ${FINANCE_SERVICE_URL:https://finance-service-placeholder}
           predicates:
             - Path=/fees/**, /payments/**, /payroll/**
           filters:
             - PrefixPath=/api
 
         - id: campus-ai-service-direct-route
-          uri: ${CAMPUS_AI_SERVICE_URL:lb://campus-ai-service}
+          uri: ${CAMPUS_AI_SERVICE_URL:https://campus-ai-service-placeholder}
           predicates:
             - Path=/chatbot/**, /announcements/**, /notifications/**, /ai/**
           filters:
@@ -109,55 +110,49 @@ spring:
 
         # Microservice Health & Actuator Inspection via Gateway
         - id: auth-service-actuator
-          uri: ${AUTH_SERVICE_URL:lb://auth-service}
+          uri: ${AUTH_SERVICE_URL:https://auth-service-placeholder}
           predicates:
             - Path=/api/actuator/auth/**
           filters:
             - RewritePath=/api/actuator/auth/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: academic-service-actuator
-          uri: ${ACADEMIC_SERVICE_URL:lb://academic-service}
+          uri: ${ACADEMIC_SERVICE_URL:https://academic-service-placeholder}
           predicates:
             - Path=/api/actuator/academic/**
           filters:
             - RewritePath=/api/actuator/academic/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: assessment-service-actuator
-          uri: ${ASSESSMENT_SERVICE_URL:lb://assessment-service}
+          uri: ${ASSESSMENT_SERVICE_URL:https://assessment-service-placeholder}
           predicates:
             - Path=/api/actuator/assessment/**
           filters:
             - RewritePath=/api/actuator/assessment/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: finance-service-actuator
-          uri: ${FINANCE_SERVICE_URL:lb://finance-service}
+          uri: ${FINANCE_SERVICE_URL:https://finance-service-placeholder}
           predicates:
             - Path=/api/actuator/finance/**
           filters:
             - RewritePath=/api/actuator/finance/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: campus-ai-service-actuator
-          uri: ${CAMPUS_AI_SERVICE_URL:lb://campus-ai-service}
+          uri: ${CAMPUS_AI_SERVICE_URL:https://campus-ai-service-placeholder}
           predicates:
             - Path=/api/actuator/ai/**
           filters:
             - RewritePath=/api/actuator/ai/(?<remaining>.*), /api/actuator/${remaining}
 
+# ==============================================================================
+# Disable Eureka Client completely in Render production profile
+# - Prevents repeated connection attempts to http://localhost:8761/eureka/
+# - Disables registration and registry fetching
+# ==============================================================================
 eureka:
   client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}}
-    registry-fetch-interval-seconds: 5
-  instance:
-    prefer-ip-address: true
-    ip-address: ${HOST_IP:127.0.0.1}
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
-
-management:
-  endpoint:
-    gateway:
-      enabled: true
-  endpoints:
-    web:
-      exposure:
-        include: "*"
+      defaultZone: ""
