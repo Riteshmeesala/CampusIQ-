@@ -81,18 +81,8 @@ export default function StudentMonthlyAttendancePage() {
 
   // Build Day-Matrix Grid Data for each subject
   const matrixData = useMemo(() => {
-    // If an inactive combination is selected, show empty
-    const isCurrentBatch =
-      (selectedSemester === '4-1' || selectedSemester === '2-2' || selectedSemester === '4') &&
-      selectedMonth === 'September' &&
-      selectedYear === '2026';
-
     const monthPrefix = `${yearNum}-${String(monthIndex).padStart(2, '0')}`;
     const monthLogs = attendanceRecords.filter(r => r.attendanceDate && r.attendanceDate.startsWith(monthPrefix));
-
-    if (!isCurrentBatch && monthLogs.length === 0) {
-      return [];
-    }
 
     // Determine our subject list
     let subjectList = courses.map(c => ({

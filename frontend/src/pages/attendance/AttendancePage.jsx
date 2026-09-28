@@ -282,7 +282,7 @@ export default function AttendancePage() {
           value={tabIndex}
           onChange={(e, val) => {
             setTabIndex(val);
-            navigate(`/student/attendance?tab=${val}`, { replace: true });
+            navigate(`${location.pathname}?tab=${val}`, { replace: true });
           }}
           variant="scrollable"
           scrollButtons="auto"

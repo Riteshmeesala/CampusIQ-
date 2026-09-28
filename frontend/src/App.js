@@ -97,6 +97,7 @@ import RDInnovationPage from './pages/faculty/RDInnovationPage';
 import SubjectsCurriculumPage from './pages/faculty/SubjectsCurriculumPage';
 import AssignmentsPage from './pages/faculty/AssignmentsPage';
 import ResultReportsPage from './pages/faculty/ResultReportsPage';
+import FacultyBiometricAttendancePage from './pages/admin/FacultyBiometricAttendancePage';
 
 function RoleHome() {
   const { user, loading } = useAuth();
@@ -318,6 +319,14 @@ export default function App() {
             {/* Direct fallback routes for core pages */}
             <Route path="/attendance"
               element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><AttendancePage /></ProtectedRoute>} />
+            <Route path="/faculty/attendance"
+              element={<ProtectedRoute roles={['FACULTY','ADMIN']}><AttendancePage /></ProtectedRoute>} />
+            <Route path="/faculty/biometric-attendance"
+              element={<ProtectedRoute roles={['FACULTY','ADMIN']}><FacultyBiometricAttendancePage /></ProtectedRoute>} />
+            <Route path="/admin/faculty-attendance"
+              element={<ProtectedRoute roles={['ADMIN','FACULTY']}><FacultyBiometricAttendancePage /></ProtectedRoute>} />
+            <Route path="/admin/attendance"
+              element={<ProtectedRoute roles={['ADMIN','FACULTY']}><FacultyBiometricAttendancePage /></ProtectedRoute>} />
             <Route path="/fees"
               element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><FeePage /></ProtectedRoute>} />
             <Route path="/exams"

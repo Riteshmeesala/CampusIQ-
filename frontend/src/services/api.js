@@ -99,13 +99,18 @@ export const authAPI = {
 // GET /attendance/student/{id}
 // POST /attendance/mark
 export const attendanceAPI = {
-  getMyAttendance:      ()                    => api.get('/attendance/my'),
-  getStudentAttendance: (studentId)           => api.get(`/attendance/student/${studentId}`),
-  getStudentCoursePct:  (studentId, courseId) => api.get(`/attendance/student/${studentId}/course/${courseId}/percentage`),
-  markAttendance:       (data)                => api.post('/attendance/mark', data),
-  mark:                 (data)                => api.post('/attendance/mark', data),
-  getAllAttendance:     ()                    => api.get('/attendance/all'),
-  getByDateAndCourse:   (courseId, date)      => api.get(`/attendance/course/${courseId}/date/${date}`),
+  getMyAttendance:            ()                    => api.get('/attendance/my'),
+  getStudentAttendance:       (studentId)           => api.get(`/attendance/student/${studentId}`),
+  getStudentCoursePct:        (studentId, courseId) => api.get(`/attendance/student/${studentId}/course/${courseId}/percentage`),
+  markAttendance:             (data)                => api.post('/attendance/mark', data),
+  mark:                       (data)                => api.post('/attendance/mark', data),
+  getAllAttendance:           ()                    => api.get('/attendance/all'),
+  getByDateAndCourse:         (courseId, date)      => api.get(`/attendance/course/${courseId}/date/${date}`),
+  // Faculty Biometric Attendance (Admin & Faculty)
+  getFacultyBiometricSummary: (params)              => api.get('/attendance/faculty/summary', { params }),
+  getAllFacultyBiometric:     ()                    => api.get('/attendance/faculty/all'),
+  getMyFacultyBiometric:      ()                    => api.get('/attendance/faculty/my'),
+  punchFacultyBiometric:      (data)                => api.post('/attendance/faculty/punch', data),
 };
 
 // GET /fees/my

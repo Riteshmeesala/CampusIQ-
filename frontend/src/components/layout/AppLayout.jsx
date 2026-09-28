@@ -22,7 +22,7 @@ import {
   AccessTimeOutlined, PollOutlined, HotelOutlined, DirectionsBusOutlined,
   Inventory2Outlined, FlagOutlined, RateReviewOutlined, FileDownloadOutlined,
   WorkspacePremiumOutlined, AssignmentIndOutlined, QuestionAnswerOutlined,
-  ReceiptLongOutlined, FolderOutlined, ErrorOutline
+  ReceiptLongOutlined, FolderOutlined, ErrorOutline, Fingerprint
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
@@ -151,7 +151,7 @@ export default function AppLayout() {
 
   // Collapsible Submenu States
   const [profileExpanded, setProfileExpanded] = useState(location.pathname.startsWith('/faculty/profile'));
-  const [attendanceExpanded, setAttendanceExpanded] = useState(location.pathname.startsWith('/student/attendance') || location.pathname.startsWith('/faculty/attendance'));
+  const [attendanceExpanded, setAttendanceExpanded] = useState(location.pathname.startsWith('/student/attendance') || location.pathname.startsWith('/faculty/attendance') || location.pathname.startsWith('/attendance'));
   const [dashboardsExpanded, setDashboardsExpanded] = useState(location.pathname.startsWith('/faculty/attendance-dashboards'));
   const [hrExpanded, setHrExpanded] = useState(location.pathname.startsWith('/faculty/human-resources'));
   const [academicsExpanded, setAcademicsExpanded] = useState(location.pathname.startsWith('/faculty/academics'));
@@ -167,7 +167,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (location.pathname.startsWith('/faculty/profile')) setProfileExpanded(true);
-    if (location.pathname.startsWith('/student/attendance') || location.pathname.startsWith('/faculty/attendance')) setAttendanceExpanded(true);
+    if (location.pathname.startsWith('/student/attendance') || location.pathname.startsWith('/faculty/attendance') || location.pathname.startsWith('/attendance')) setAttendanceExpanded(true);
     if (location.pathname.startsWith('/faculty/attendance-dashboards')) setDashboardsExpanded(true);
     if (location.pathname.startsWith('/faculty/human-resources')) setHrExpanded(true);
     if (location.pathname.startsWith('/faculty/academics')) setAcademicsExpanded(true);
@@ -195,7 +195,7 @@ export default function AppLayout() {
 
   const queryParams = new URLSearchParams(location.search);
   const activeProfileTab = location.pathname === '/faculty/profile' ? parseInt(queryParams.get('tab') || '0', 10) : -1;
-  const activeAttendanceTab = (location.pathname === '/student/attendance' || location.pathname === '/faculty/attendance') ? parseInt(queryParams.get('tab') || '0', 10) : -1;
+  const activeAttendanceTab = (location.pathname === '/student/attendance' || location.pathname === '/faculty/attendance' || location.pathname === '/attendance') ? parseInt(queryParams.get('tab') || '0', 10) : -1;
   const activeDashboardsTab = location.pathname === '/faculty/attendance-dashboards' ? parseInt(queryParams.get('tab') || '0', 10) : -1;
   const activeHrTab = location.pathname === '/faculty/human-resources' ? parseInt(queryParams.get('tab') || '0', 10) : -1;
   const activeAcademicsTab = location.pathname === '/faculty/academics' ? parseInt(queryParams.get('tab') || '0', 10) : -1;
@@ -358,7 +358,8 @@ export default function AppLayout() {
     { icon: <PeopleAltOutlined fontSize="small" />,  label: 'Student Records',     path: '/admin/students' },
     { icon: <AssessmentOutlined fontSize="small" />, label: 'Semester Final Marks Manager', path: '/admin/academic-records' },
     { icon: <QrCode2Outlined fontSize="small" />,    label: 'QR Registration & Excel Import', path: '/admin/student-scanner' },
-    { icon: <SchoolOutlined fontSize="small" />,     label: 'Faculty Directory',   path: '/admin/faculty' },
+    { icon: <Fingerprint fontSize="small" />,        label: 'Faculty Biometric Attendance', path: '/admin/faculty-attendance' },
+    { icon: <CalendarMonthOutlined fontSize="small" />, label: 'Students Attendance Suite', path: '/attendance' },
     { icon: <BarChartOutlined fontSize="small" />,   label: 'Institutional Insights', path: '/student/ai-insights' },
     { icon: <PaymentOutlined fontSize="small" />,    label: 'Tuition & Billing',   path: '/student/fees' },
     { icon: <EventNoteOutlined fontSize="small" />,  label: 'Examination Registry',path: '/student/exams' },
@@ -393,10 +394,11 @@ export default function AppLayout() {
         {
           icon: <CalendarMonthOutlined fontSize="small" />,
           label: 'Students Attendance',
-          path: '/student/attendance',
+          path: '/faculty/attendance',
           hasSub: true,
           isAttendanceGroup: true
         },
+        { icon: <Fingerprint fontSize="small" />, label: 'Faculty Biometrics & Attendance', path: '/faculty/biometric-attendance' },
         {
           icon: <AssessmentOutlined fontSize="small" />,
           label: 'Attendance Dashboards',
