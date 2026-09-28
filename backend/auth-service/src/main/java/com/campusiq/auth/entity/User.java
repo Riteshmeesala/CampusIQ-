@@ -62,7 +62,7 @@ public class User {
     @Column(name = "enrollment_number", unique = true, length = 50)
     private String enrollmentNumber;
 
-    @Column(name = "profile_image", columnDefinition = "LONGTEXT")
+    @Column(name = "profile_image", columnDefinition = "TEXT")
     private String profileImage;
 
     @Column(name = "is_active")
@@ -143,25 +143,25 @@ public class User {
     @Column(name = "specialization", columnDefinition = "TEXT")
     private String specialization;
 
-    @Column(name = "research_publications", columnDefinition = "LONGTEXT")
+    @Column(name = "research_publications", columnDefinition = "TEXT")
     private String researchPublications;
 
-    @Column(name = "awards", columnDefinition = "LONGTEXT")
+    @Column(name = "awards", columnDefinition = "TEXT")
     private String awards;
 
-    @Column(name = "achievements", columnDefinition = "LONGTEXT")
+    @Column(name = "achievements", columnDefinition = "TEXT")
     private String achievements;
 
-    @Column(name = "extracurriculars", columnDefinition = "LONGTEXT")
+    @Column(name = "extracurriculars", columnDefinition = "TEXT")
     private String extracurriculars;
 
-    @Column(name = "certificates", columnDefinition = "LONGTEXT")
+    @Column(name = "certificates", columnDefinition = "TEXT")
     private String certificates;
 
-    @Column(name = "documents", columnDefinition = "LONGTEXT")
+    @Column(name = "documents", columnDefinition = "TEXT")
     private String documents;
 
-    @Column(name = "leave_balances", columnDefinition = "LONGTEXT")
+    @Column(name = "leave_balances", columnDefinition = "TEXT")
     private String leaveBalances;
 
     @CreationTimestamp

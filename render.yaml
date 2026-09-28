@@ -1,0 +1,27 @@
+services:
+  # ── CampusIQ+ Backend Web Service on Render ──
+  - type: web
+    name: campusiq-backend
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        sync: false # Set to your Neon/Supabase/Render PostgreSQL JDBC URL
+      - key: DB_USERNAME
+        sync: false # Set to your PostgreSQL username
+      - key: DB_PASSWORD
+        sync: false # Set to your PostgreSQL password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false # Set to your Vercel URL e.g. https://campusiq.vercel.app
+      - key: XAI_API_KEY
+        sync: false # Set to your Grok AI Key
+      - key: GROK_MODEL
+        value: grok-beta
+      - key: GROK_BASE_URL
+        value: https://api.x.ai/v1
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update

@@ -37,6 +37,7 @@
         <jjwt.version>0.11.5</jjwt.version>
         <lombok.version>1.18.36</lombok.version>
         <mysql.version>8.3.0</mysql.version>
+        <postgresql.version>42.7.2</postgresql.version>
         <okhttp.version>4.12.0</okhttp.version>
         <razorpay.version>1.4.3</razorpay.version>
     </properties>
@@ -86,6 +87,12 @@
                 <groupId>com.razorpay</groupId>
                 <artifactId>razorpay-java</artifactId>
                 <version>${razorpay.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+                <scope>runtime</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

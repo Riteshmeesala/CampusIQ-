@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -10,7 +10,10 @@ spring:
         cors-configurations:
           '[/**]':
             allowedOriginPatterns:
-              - "*"
+              - "${FRONTEND_URL:http://localhost:3000}"
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+              - "https://*.vercel.app"
             allowedMethods:
               - GET
               - POST
@@ -29,65 +32,65 @@ spring:
       routes:
         # Auth & Users Route (/api/...)
         - id: auth-service-route
-          uri: lb://auth-service
+          uri: ${AUTH_SERVICE_URL:lb://auth-service}
           predicates:
             - Path=/api/auth/**, /api/users/**, /api/registrations/**
 
         # Academic Services Route (/api/...)
         - id: academic-service-route
-          uri: lb://academic-service
+          uri: ${ACADEMIC_SERVICE_URL:lb://academic-service}
           predicates:
             - Path=/api/courses/**, /api/attendance/**, /api/timetable/**, /api/timetables/**, /api/schedule/**, /api/faculty-schedules/**, /api/faculty-assignments/**, /api/student-services/**, /api/leaves/**, /api/certificates/**, /api/grievances/**, /api/mentoring/**, /api/surveys/**, /api/library/**, /api/placements/**, /api/projects/**, /api/campus-services/**, /api/warnings/**, /api/department-events/**
 
         # Assessment Services Route (/api/...)
         - id: assessment-service-route
-          uri: lb://assessment-service
+          uri: ${ASSESSMENT_SERVICE_URL:lb://assessment-service}
           predicates:
             - Path=/api/exams/**, /api/results/**, /api/cgpa/**, /api/analytics/**, /api/academic-records/**
 
         # Finance Services Route (/api/...)
         - id: finance-service-route
-          uri: lb://finance-service
+          uri: ${FINANCE_SERVICE_URL:lb://finance-service}
           predicates:
             - Path=/api/fees/**, /api/payments/**, /api/payroll/**
 
         # Campus AI & Notifications Route (/api/...)
         - id: campus-ai-service-route
-          uri: lb://campus-ai-service
+          uri: ${CAMPUS_AI_SERVICE_URL:lb://campus-ai-service}
           predicates:
             - Path=/api/chatbot/**, /api/announcements/**, /api/notifications/**, /api/ai/**
 
         # Direct Routes (Testing Convenience: auto-prefixes /api if omitted)
         - id: auth-service-direct-route
-          uri: lb://auth-service
+          uri: ${AUTH_SERVICE_URL:lb://auth-service}
           predicates:
             - Path=/auth/**, /users/**, /registrations/**
           filters:
             - PrefixPath=/api
 
         - id: academic-service-direct-route
-          uri: lb://academic-service
+          uri: ${ACADEMIC_SERVICE_URL:lb://academic-service}
           predicates:
             - Path=/courses/**, /attendance/**, /timetable/**, /timetables/**, /schedule/**, /faculty-schedules/**, /faculty-assignments/**, /student-services/**, /leaves/**, /certificates/**, /grievances/**, /mentoring/**, /surveys/**, /library/**, /placements/**, /projects/**, /campus-services/**, /warnings/**, /department-events/**
           filters:
             - PrefixPath=/api
 
         - id: assessment-service-direct-route
-          uri: lb://assessment-service
+          uri: ${ASSESSMENT_SERVICE_URL:lb://assessment-service}
           predicates:
             - Path=/exams/**, /results/**, /cgpa/**, /analytics/**, /academic-records/**
           filters:
             - PrefixPath=/api
 
         - id: finance-service-direct-route
-          uri: lb://finance-service
+          uri: ${FINANCE_SERVICE_URL:lb://finance-service}
           predicates:
             - Path=/fees/**, /payments/**, /payroll/**
           filters:
             - PrefixPath=/api
 
         - id: campus-ai-service-direct-route
-          uri: lb://campus-ai-service
+          uri: ${CAMPUS_AI_SERVICE_URL:lb://campus-ai-service}
           predicates:
             - Path=/chatbot/**, /announcements/**, /notifications/**, /ai/**
           filters:
@@ -95,35 +98,35 @@ spring:
 
         # Microservice Health & Actuator Inspection via Gateway
         - id: auth-service-actuator
-          uri: lb://auth-service
+          uri: ${AUTH_SERVICE_URL:lb://auth-service}
           predicates:
             - Path=/api/actuator/auth/**
           filters:
             - RewritePath=/api/actuator/auth/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: academic-service-actuator
-          uri: lb://academic-service
+          uri: ${ACADEMIC_SERVICE_URL:lb://academic-service}
           predicates:
             - Path=/api/actuator/academic/**
           filters:
             - RewritePath=/api/actuator/academic/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: assessment-service-actuator
-          uri: lb://assessment-service
+          uri: ${ASSESSMENT_SERVICE_URL:lb://assessment-service}
           predicates:
             - Path=/api/actuator/assessment/**
           filters:
             - RewritePath=/api/actuator/assessment/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: finance-service-actuator
-          uri: lb://finance-service
+          uri: ${FINANCE_SERVICE_URL:lb://finance-service}
           predicates:
             - Path=/api/actuator/finance/**
           filters:
             - RewritePath=/api/actuator/finance/(?<remaining>.*), /api/actuator/${remaining}
 
         - id: campus-ai-service-actuator
-          uri: lb://campus-ai-service
+          uri: ${CAMPUS_AI_SERVICE_URL:lb://campus-ai-service}
           predicates:
             - Path=/api/actuator/ai/**
           filters:
@@ -132,12 +135,12 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}}
     registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
-    ip-address: 127.0.0.1
-    hostname: localhost
+    ip-address: ${HOST_IP:127.0.0.1}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
 
 management:
   endpoint:

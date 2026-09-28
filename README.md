@@ -234,7 +234,104 @@ CampusIQ+ uses **Groq Cloud API** for ultra-fast, high-accuracy conversational A
 | **MySQL Database** | `localhost:3306` | Database: `campusiq_v6` |
 | **Actuator Health**| `http://localhost:8080/api/actuator/health` | Health & monitoring |
 
+## Deployment
+
+### Production Architecture
+- **Frontend**: Vercel (React Single-Page Application)
+- **Backend API**: Render (Spring Boot Multi-Module / API Gateway container)
+- **Database**: Cloud PostgreSQL (Neon / Supabase / Render PostgreSQL)
+
+```
+[ User Browser ]
+       │ HTTPS
+       ▼
+ [ Vercel (React SPA) ]
+       │ HTTPS /api/*
+       ▼
+ [ Render (Spring Boot API Gateway) ]
+  ├── /api/auth/**       ──► [auth-service]
+  ├── /api/academic/**   ──► [academic-service]
+  ├── /api/assessment/** ──► [assessment-service]
+  ├── /api/finance/**    ──► [finance-service]
+  └── /api/ai/**         ──► [campus-ai-service]
+       │ JDBC
+       ▼
+ [ Cloud PostgreSQL (Neon / Supabase / Render) ]
+```
+
+---
+
+### 1. Database Setup (Cloud PostgreSQL)
+1. Provision a free PostgreSQL database on [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Render](https://render.com).
+2. Obtain your pooled connection string:
+   ```
+   jdbc:postgresql://<host>:5432/<dbname>?sslmode=require
+   ```
+3. Open the SQL Editor on your cloud provider and run:
+   [`database/campusiq_postgres_init.sql`](database/campusiq_postgres_init.sql)
+   This creates all required tables, constraints, indexes, and initial demo accounts (`admin`, `faculty1`, `ravi2268`).
+
+---
+
+### 2. Backend Deployment (Render)
+1. Fork or push this repository to GitHub.
+2. Log in to [Render Dashboard](https://dashboard.render.com).
+3. Click **New +** → **Web Service** (or use Blueprint with `render.yaml`).
+4. Connect your GitHub repository.
+5. Configure the service:
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `./Dockerfile`
+   - **Docker Context**: `.`
+   - **Health Check Path**: `/api/health`
+6. Add Environment Variables in the Render dashboard:
+   - `SPRING_DATASOURCE_URL`: `jdbc:postgresql://<host>:5432/<dbname>?sslmode=require`
+   - `DB_USERNAME`: `<your-db-username>`
+   - `DB_PASSWORD`: `<your-db-password>`
+   - `JWT_SECRET`: `<minimum-32-character-random-secret>`
+   - `FRONTEND_URL`: `https://<your-vercel-app>.vercel.app`
+   - `GROQ_API_KEY`: `<your-groq-api-key>`
+   - `RAZORPAY_KEY_ID`: `<optional-razorpay-key>`
+   - `RAZORPAY_KEY_SECRET`: `<optional-razorpay-secret>`
+   - `MAIL_USERNAME`: `<optional-gmail-address>`
+   - `MAIL_PASSWORD`: `<optional-gmail-app-password>`
+7. Click **Deploy**. When live, test `https://<your-backend>.onrender.com/api/health`.
+
+---
+
+### 3. Frontend Deployment (Vercel)
+1. Log in to [Vercel](https://vercel.com).
+2. Click **Add New...** → **Project** and import your GitHub repository.
+3. Configure the Project:
+   - **Framework Preset**: `Create React App`
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `build`
+   - **Install Command**: `npm install`
+4. Add Environment Variable:
+   - `REACT_APP_API_BASE_URL`: `https://<your-backend>.onrender.com/api`
+5. Click **Deploy**.
+6. Once deployed, copy your production Vercel URL (e.g., `https://campusiq.vercel.app`) and set it as `FRONTEND_URL` in your Render backend settings so CORS allows production requests.
+
+---
+
+### 4. Required Environment Variables Reference
+
+| Variable | Target Platform | Description | Example / Default |
+|---|---|---|---|
+| `REACT_APP_API_BASE_URL` | Vercel | Backend API Gateway root URL | `https://campusiq-api.onrender.com/api` |
+| `SPRING_DATASOURCE_URL` | Render | PostgreSQL JDBC connection URL | `jdbc:postgresql://ep-xyz.neon.tech/campusiq?sslmode=require` |
+| `DB_USERNAME` | Render | PostgreSQL database username | `neondb_owner` |
+| `DB_PASSWORD` | Render | PostgreSQL database password | `••••••••` |
+| `JWT_SECRET` | Render | HMAC-SHA256 signing secret (min 32 chars) | `your_32_character_jwt_secret_key_here` |
+| `FRONTEND_URL` | Render | Allowed frontend origin for CORS | `https://your-project.vercel.app` |
+| `GROQ_API_KEY` | Render | Groq Cloud API Key for CampusMate AI | `gsk_••••••••` |
+| `RAZORPAY_KEY_ID` | Render | Razorpay test/live key (optional) | `rzp_test_••••••••` |
+| `RAZORPAY_KEY_SECRET` | Render | Razorpay secret (optional) | `••••••••` |
+| `MAIL_USERNAME` | Render | Gmail SMTP address (optional) | `you@gmail.com` |
+| `MAIL_PASSWORD` | Render | Gmail App Password (optional) | `••••••••` |
+
 ---
 
 ## License
 MIT License — Copyright (c) 2026 CampusIQ+ Team.
+
