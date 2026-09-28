@@ -45,7 +45,7 @@ public class GrievancesController {
         grievances.add(g2);
     }
 
-    @GetMapping
+    @GetMapping({"", "/my"})
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllGrievances() {
         return ResponseEntity.ok(ApiResponse.success(grievances));
     }

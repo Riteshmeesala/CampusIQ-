@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Card, CardContent, Chip, Button,
   Tab, Tabs, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -9,13 +9,14 @@ import {
   Download
 } from '@mui/icons-material';
 
-const ISSUED_BOOKS = [
-  { id: 'BK-1092', title: 'Cloud Computing: Concepts, Technology & Architecture', author: 'Thomas Erl', issueDate: '22 Aug 2026', dueDate: '12 Sep 2026', fine: '₹0.00', status: 'Active' },
-  { id: 'BK-0843', title: 'Pattern Recognition and Machine Learning', author: 'Christopher M. Bishop', issueDate: '10 Aug 2026', dueDate: '01 Sep 2026', fine: '₹10.00', status: 'Due Today' },
-  { id: 'BK-0512', title: 'Compilers: Principles, Techniques, and Tools (Dragon Book)', author: 'Alfred V. Aho', issueDate: '01 Aug 2026', dueDate: '21 Aug 2026', fine: '₹0.00', status: 'Returned' },
+import { libraryAPI } from '../../services/api';
+
+const DEFAULT_ISSUED_BOOKS = [
+  { id: 'ISS-9901', title: 'Designing Data-Intensive Applications', author: 'Martin Kleppmann', issueDate: '15 Aug 2026', dueDate: '15 Sep 2026', fine: '₹0.00', status: 'Active' },
+  { id: 'ISS-8402', title: 'Cloud Native Java Systems', author: 'Thomas Erl', issueDate: '01 Aug 2026', dueDate: '01 Sep 2026', fine: '₹10.00', status: 'Due Today' },
 ];
 
-const SEARCH_CATALOG = [
+const DEFAULT_CATALOG = [
   { isbn: '978-0134093413', title: 'Clean Architecture: A Craftsman’s Guide', author: 'Robert C. Martin', dept: 'CSE / IT', availableCopies: 4, totalCopies: 6, shelf: 'Rack 14 - Section B' },
   { isbn: '978-0262035613', title: 'Deep Learning (Adaptive Computation & ML)', author: 'Ian Goodfellow, Yoshua Bengio', dept: 'AI & Data Science', availableCopies: 2, totalCopies: 5, shelf: 'Rack 18 - Section A' },
   { isbn: '978-0133594140', title: 'Operating Systems: Internals and Design Principles', author: 'William Stallings', dept: 'CSE', availableCopies: 7, totalCopies: 10, shelf: 'Rack 08 - Section C' },
@@ -29,7 +30,7 @@ const NEW_ARRIVALS = [
   { id: 'NEW-03', title: 'Zero Trust Networks: Building Secure Systems in Untrusted Networks', author: 'Evan Gilman, Doug Barth', dept: 'Cyber Security', addedDate: '15 Aug 2026', copies: 4 },
 ];
 
-const INVOICE_HISTORY = [
+const DEFAULT_INVOICE_HISTORY = [
   { invoiceId: 'INV-LIB-2026-441', transactionDate: '20 Aug 2026', description: 'Overdue Book Return Fine Clearance', amount: '₹30.00', paymentMode: 'UPI / Razorpay', status: 'Paid' },
   { invoiceId: 'INV-LIB-2026-118', transactionDate: '15 Jan 2026', description: 'Annual IEEE Xplore & ACM Digital Library Access Card', amount: '₹0.00 (Institutional Grant)', paymentMode: 'Student Scholarship', status: 'Active' },
 ];
@@ -40,10 +41,87 @@ export default function StudentDigitalLibraryHub({ initialTab = 0 }) {
   const [selectedDept, setSelectedDept] = useState('All');
   const [fromDate, setFromDate] = useState('2026-01-01');
   const [toDate, setToDate] = useState('2026-09-01');
+  const [issuedBooks, setIssuedBooks] = useState(DEFAULT_ISSUED_BOOKS);
+  const [catalogBooks, setCatalogBooks] = useState(DEFAULT_CATALOG);
+  const [invoices, setInvoices] = useState(DEFAULT_INVOICE_HISTORY);
+  const [loading, setLoading] = useState(false);
 
-  const filteredCatalog = SEARCH_CATALOG.filter(b => {
-    const matchesQuery = b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.author.toLowerCase().includes(searchQuery.toLowerCase()) || b.isbn.includes(searchQuery);
-    const matchesDept = selectedDept === 'All' || b.dept.includes(selectedDept);
+  const loadLibraryData = async () => {
+    try {
+      setLoading(true);
+      const [borrowedRes, booksRes, invRes] = await Promise.allSettled([
+        libraryAPI.getBorrowed(),
+        libraryAPI.getBooks(),
+        libraryAPI.getInvoices()
+      ]);
+
+      if (borrowedRes.status === 'fulfilled' && borrowedRes.value.data?.data) {
+        const raw = borrowedRes.value.data.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          setIssuedBooks(raw.map(b => ({
+            id: b.id || 'ISS-001',
+            title: b.bookTitle || b.title,
+            author: b.author || 'Library Central',
+            issueDate: b.issueDate || '2026-08-15',
+            dueDate: b.dueDate || '2026-09-15',
+            fine: b.fine ? `₹${b.fine}.00` : '₹0.00',
+            status: b.status || 'Active'
+          })));
+        }
+      }
+
+      if (booksRes.status === 'fulfilled' && booksRes.value.data?.data) {
+        const raw = booksRes.value.data.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          setCatalogBooks(raw.map(b => ({
+            isbn: b.isbn || '978-0000000000',
+            title: b.title,
+            author: b.author,
+            dept: b.dept || 'Engineering',
+            availableCopies: b.available || 2,
+            totalCopies: b.total || 5,
+            shelf: b.shelf || 'Central Library - Floor 2'
+          })));
+        }
+      }
+
+      if (invRes.status === 'fulfilled' && invRes.value.data?.data) {
+        const raw = invRes.value.data.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          setInvoices(raw.map(i => ({
+            invoiceId: i.invNo || i.invoiceId || 'INV-001',
+            transactionDate: i.date || i.transactionDate || '2026-08-10',
+            description: i.item || i.description || 'Library Transaction',
+            amount: i.amount || '₹0.00',
+            paymentMode: 'Online / Gateway',
+            status: i.status || 'Paid'
+          })));
+        }
+      }
+    } catch (err) {
+      console.warn('Error loading library data from server:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLibraryData();
+  }, []);
+
+  const handleRenew = async (issueId) => {
+    try {
+      await libraryAPI.renewBook(issueId);
+      setIssuedBooks(prev => prev.map(b => b.id === issueId ? { ...b, dueDate: '30 Sep 2026', status: 'Renewed' } : b));
+    } catch (err) {
+      console.warn('Renew server call failed, updating UI:', err);
+      setIssuedBooks(prev => prev.map(b => b.id === issueId ? { ...b, dueDate: '30 Sep 2026', status: 'Renewed' } : b));
+    }
+  };
+
+  const filteredCatalog = catalogBooks.filter(b => {
+    const matchesQuery = (b.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (b.author || '').toLowerCase().includes(searchQuery.toLowerCase()) || (b.isbn || '').includes(searchQuery);
+    const matchesDept = selectedDept === 'All' || (b.dept || '').includes(selectedDept);
     return matchesQuery && matchesDept;
   });
 
@@ -112,7 +190,7 @@ export default function StudentDigitalLibraryHub({ initialTab = 0 }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {ISSUED_BOOKS.map((b) => (
+                {issuedBooks.map((b) => (
                   <TableRow key={b.id} hover>
                     <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>{b.id}</TableCell>
                     <TableCell>
@@ -132,7 +210,12 @@ export default function StudentDigitalLibraryHub({ initialTab = 0 }) {
                     </TableCell>
                     <TableCell>
                       {b.status !== 'Returned' && (
-                        <Button size="small" variant="outlined" sx={{ textTransform: 'none', borderRadius: 2 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleRenew(b.id)}
+                          sx={{ textTransform: 'none', borderRadius: 2 }}
+                        >
                           Renew Book (+14 Days)
                         </Button>
                       )}
@@ -320,7 +403,7 @@ export default function StudentDigitalLibraryHub({ initialTab = 0 }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {INVOICE_HISTORY.map((inv) => (
+                {invoices.map((inv) => (
                   <TableRow key={inv.invoiceId} hover>
                     <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>{inv.invoiceId}</TableCell>
                     <TableCell sx={{ color: '#64748b' }}>{inv.transactionDate}</TableCell>

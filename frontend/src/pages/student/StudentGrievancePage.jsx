@@ -5,12 +5,14 @@ import {
 } from '@mui/material';
 import { FlagOutlined, Add, Refresh } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { grievanceAPI } from '../../services/api';
 import { getSharedGrievances, saveSharedGrievance, DATA_SYNC_EVENTS, subscribeToDataSync } from '../../services/dataSync';
 import PageHeader from '../../components/shared/PageHeader';
 
 export default function StudentGrievancePage() {
   const { user } = useAuth();
   const [grievances, setGrievances] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [form, setForm] = useState({
     category: 'Academic',
@@ -19,38 +21,63 @@ export default function StudentGrievancePage() {
   });
   const [successMsg, setSuccessMsg] = useState('');
 
-  const loadGrievances = () => {
-    setGrievances(getSharedGrievances());
+  const loadGrievances = async () => {
+    try {
+      setLoading(true);
+      const res = await grievanceAPI.getMyGrievances();
+      const serverData = res.data?.data || res.data || [];
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        setGrievances(serverData);
+      } else {
+        setGrievances(getSharedGrievances());
+      }
+    } catch (err) {
+      console.warn('Failed to load grievances from server, using local fallback:', err);
+      setGrievances(getSharedGrievances());
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadGrievances();
     const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.GRIEVANCE_RESOLVED, () => loadGrievances());
-    return () => unsub();
+    const unsubSub = subscribeToDataSync(DATA_SYNC_EVENTS.GRIEVANCE_SUBMITTED, () => loadGrievances());
+    return () => {
+      unsub();
+      unsubSub();
+    };
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.subject.trim() || !form.desc.trim()) return;
 
-    const newGrv = {
-      id: `GRV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
+    const payload = {
       studentName: user?.name || 'Student',
       rollNo: user?.username || '24CS001',
       category: form.category,
       subject: form.subject.trim(),
       desc: form.desc.trim(),
-      date: new Date().toISOString().split('T')[0],
-      status: 'Submitted',
-      response: 'Under institutional review by grievance committee.'
     };
 
-    saveSharedGrievance(newGrv);
-    setGrievances(getSharedGrievances());
-    setOpenModal(false);
-    setForm({ category: 'Academic', subject: '', desc: '' });
-    setSuccessMsg('Grievance lodged successfully. Committee will review within 48 hours.');
-    setTimeout(() => setSuccessMsg(''), 4000);
+    try {
+      const res = await grievanceAPI.submitGrievance(payload);
+      const created = res.data?.data || res.data || payload;
+      saveSharedGrievance(created);
+      await loadGrievances();
+      setOpenModal(false);
+      setForm({ category: 'Academic', subject: '', desc: '' });
+      setSuccessMsg('Grievance lodged successfully to backend server. Committee will review within 48 hours.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      console.error('Error submitting grievance to backend:', err);
+      saveSharedGrievance(payload);
+      setGrievances(getSharedGrievances());
+      setOpenModal(false);
+      setSuccessMsg('Grievance saved locally (offline mode).');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    }
   };
 
   return (

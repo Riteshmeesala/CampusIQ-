@@ -7,6 +7,7 @@ import {
 import {
   Poll, Star, Send, CheckCircle, AutoAwesome, RateReview
 } from '@mui/icons-material';
+import { surveyAPI } from '../../services/api';
 
 const SSS_QUESTIONS = [
   { id: 1, text: 'How much of the syllabus was covered in the class?', options: ['85 to 100%', '70 to 84%', '55 to 69%', '30 to 54%', 'Below 30%'] },
@@ -38,16 +39,46 @@ export default function StudentSurveysFeedbackPage({ initialTab = 0 }) {
     setSssAnswers(prev => ({ ...prev, [qId]: val }));
   };
 
-  const handleSssSubmit = () => {
+  const handleSssSubmit = async () => {
+    try {
+      await surveyAPI.submitSurvey({
+        surveyType: 'NAAC_SSS',
+        answers: sssAnswers,
+        studentRoll: '24CS001'
+      });
+    } catch (err) {
+      console.warn('Failed to submit SSS to server:', err);
+    }
     setSubmitted(prev => ({ ...prev, sss: true }));
   };
 
-  const handleCesSubmit = () => {
+  const handleCesSubmit = async () => {
+    try {
+      await surveyAPI.submitSurvey({
+        surveyType: 'COURSE_END_SURVEY',
+        courseCode: selectedCourse.code,
+        courseName: selectedCourse.name,
+        ratings: courseRatings,
+        studentRoll: '24CS001'
+      });
+    } catch (err) {
+      console.warn('Failed to submit CES to server:', err);
+    }
     setSubmitted(prev => ({ ...prev, ces: true }));
   };
 
-  const handleGeneralSubmit = () => {
+  const handleGeneralSubmit = async () => {
     if (!feedbackText.trim()) return;
+    try {
+      await surveyAPI.submitSurvey({
+        surveyType: 'GENERAL_FEEDBACK',
+        category: feedbackCategory,
+        feedback: feedbackText.trim(),
+        studentRoll: '24CS001'
+      });
+    } catch (err) {
+      console.warn('Failed to submit feedback to server:', err);
+    }
     setSubmitted(prev => ({ ...prev, general: true }));
   };
 

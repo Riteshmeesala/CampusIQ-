@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { People, School, Payment, Visibility, Groups, ArrowForward } from '@mui/icons-material';
 import { userAPI, examAPI, feeAPI } from '../../services/api';
+import { subscribeToDataSync } from '../../services/dataSync';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import StatCard from '../../components/shared/StatCard';
@@ -22,7 +23,7 @@ export default function AdminDashboard() {
   const [pendingFees,  setPendingFees]  = useState(0);
   const [loading,      setLoading]      = useState(true);
 
-  useEffect(() => {
+  const loadAdminData = () => {
     Promise.allSettled([
       userAPI.getStudents(),
       userAPI.getStats(),
@@ -38,6 +39,18 @@ export default function AdminDashboard() {
       }
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    loadAdminData();
+    window.addEventListener('focus', loadAdminData);
+    const unsub = subscribeToDataSync(() => {
+      loadAdminData();
+    });
+    return () => {
+      window.removeEventListener('focus', loadAdminData);
+      unsub();
+    };
   }, []);
 
   if (loading) return (

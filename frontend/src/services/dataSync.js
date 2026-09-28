@@ -37,10 +37,15 @@ export const DATA_SYNC_EVENTS = {
   ACHIEVEMENT_VERIFIED: 'ACHIEVEMENT_VERIFIED',
   INTERNSHIP_REGISTERED: 'INTERNSHIP_REGISTERED',
   FEE_PAID: 'FEE_PAID',
+  FEE_UPDATED: 'FEE_UPDATED',
   SURVEY_SUBMITTED: 'SURVEY_SUBMITTED',
   WARNING_ISSUED: 'WARNING_ISSUED',
   RESULT_PUBLISHED: 'RESULT_PUBLISHED',
   NOTIFICATION_DISPATCHED: 'NOTIFICATION_DISPATCHED',
+  EXAM_UPDATED: 'EXAM_UPDATED',
+  TIMETABLE_UPDATED: 'TIMETABLE_UPDATED',
+  COURSE_UPDATED: 'COURSE_UPDATED',
+  USER_DATA_UPDATED: 'USER_DATA_UPDATED',
 };
 
 // Dispatch a synchronization event to all roles (Admin, Faculty, Student)
@@ -58,7 +63,11 @@ export const broadcastDataChange = (eventType, payload = {}) => {
   };
 
   if (broadcastChannel) {
-    broadcastChannel.postMessage(syncPayload);
+    try {
+      broadcastChannel.postMessage(syncPayload);
+    } catch (e) {
+      console.warn('BroadcastChannel postMessage error:', e);
+    }
   }
 
   try {
@@ -66,21 +75,48 @@ export const broadcastDataChange = (eventType, payload = {}) => {
   } catch (e) {}
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('campusiq_sync', { detail: syncPayload }));
+    try {
+      window.dispatchEvent(new CustomEvent('campusiq_sync', { detail: syncPayload }));
+    } catch (e) {}
   }
 };
 
-// Subscribe to synchronization events
-export const subscribeToDataSync = (callback) => {
+// Subscribe to synchronization events - supports both (callback) and (eventType, callback)
+export const subscribeToDataSync = (arg1, arg2) => {
+  let targetEvent = null;
+  let callback = null;
+
+  if (typeof arg1 === 'function') {
+    callback = arg1;
+  } else if (typeof arg1 === 'string' && typeof arg2 === 'function') {
+    targetEvent = arg1;
+    callback = arg2;
+  } else if (typeof arg2 === 'function') {
+    callback = arg2;
+  }
+
+  if (!callback) return () => {};
+
+  const dispatchEvent = (data) => {
+    if (!data) return;
+    if (!targetEvent || targetEvent === '*' || data.type === targetEvent) {
+      try {
+        callback(data);
+      } catch (err) {
+        console.error('Error in sync subscriber:', err);
+      }
+    }
+  };
+
   const handleMessage = (event) => {
     if (event.data) {
-      callback(event.data);
+      dispatchEvent(event.data);
     }
   };
 
   const handleCustomEvent = (event) => {
     if (event.detail) {
-      callback(event.detail);
+      dispatchEvent(event.detail);
     }
   };
 
@@ -88,7 +124,7 @@ export const subscribeToDataSync = (callback) => {
     if (event.key === 'campusiq_last_sync_event' && event.newValue) {
       try {
         const parsed = JSON.parse(event.newValue);
-        callback(parsed);
+        dispatchEvent(parsed);
       } catch (e) {}
     }
   };
@@ -262,5 +298,16 @@ export const updateSharedStudentCgpa = (studentId, cgpa, semester = null, remark
   setStorageItem('campusiq_store_cgpa_map', map);
   broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, updatedEntry);
   return updatedEntry;
+};
+
+// 9. INTERNSHIPS
+const INITIAL_INTERNSHIPS = [];
+export const getSharedInternships = () => getStorageItem('campusiq_store_internships', INITIAL_INTERNSHIPS);
+export const saveSharedInternship = (newInternship) => {
+  const current = getSharedInternships();
+  const updated = [newInternship, ...current];
+  setStorageItem('campusiq_store_internships', updated);
+  broadcastDataChange(DATA_SYNC_EVENTS.INTERNSHIP_REGISTERED, newInternship);
+  return updated;
 };
 

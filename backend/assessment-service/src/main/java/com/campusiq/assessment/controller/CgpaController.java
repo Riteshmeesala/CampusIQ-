@@ -34,6 +34,16 @@ public class CgpaController {
                 result.size() + " student CGPA record(s) published successfully"));
     }
 
+    @GetMapping("/my")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<StudentCgpa>>> getMyCgpa(
+            @AuthenticationPrincipal UserPrincipal me) {
+        if (me == null || me.getId() == null) {
+            return ResponseEntity.ok(ApiResponse.success(List.of()));
+        }
+        return ResponseEntity.ok(ApiResponse.success(cgpaService.getStudentCgpa(me.getId())));
+    }
+
     @GetMapping("/student/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','STUDENT','FACULTY')")
     public ResponseEntity<ApiResponse<List<StudentCgpa>>> getStudentCgpa(@PathVariable Long id) {

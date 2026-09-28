@@ -1,28 +1,71 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import { QuestionAnswerOutlined, Refresh, CheckCircle, HourglassEmpty } from '@mui/icons-material';
+import { leaveAPI, certificateAPI } from '../../services/api';
 import { getSharedLeaves, DATA_SYNC_EVENTS, subscribeToDataSync } from '../../services/dataSync';
 import PageHeader from '../../components/shared/PageHeader';
 
 export default function StudentApprovalsPage() {
   const [approvals, setApprovals] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const loadApprovals = () => {
-    const leaves = getSharedLeaves();
-    setApprovals(leaves.map(l => ({
-      id: l.id,
-      type: `${l.type} Request`,
-      description: `${l.reason} (${l.fromDate} to ${l.toDate})`,
-      date: l.dateApplied,
-      approver: l.approvedBy || 'Department Faculty HOD',
-      status: l.status
-    })));
+  const loadApprovals = async () => {
+    try {
+      setLoading(true);
+      const [leavesRes, certsRes] = await Promise.allSettled([
+        leaveAPI.getMyLeaves(),
+        certificateAPI.getMyCertificates()
+      ]);
+
+      const serverLeaves = (leavesRes.status === 'fulfilled' && (leavesRes.value.data?.data || leavesRes.value.data)) || getSharedLeaves();
+      const serverCerts = (certsRes.status === 'fulfilled' && (certsRes.value.data?.data || certsRes.value.data)) || [];
+
+      const combined = [
+        ...serverLeaves.map(l => ({
+          id: l.id,
+          type: `${l.type} Request`,
+          description: `${l.reason || 'Leave application'} (${l.fromDate} to ${l.toDate})`,
+          date: l.dateApplied,
+          approver: l.approvedBy || 'Department Faculty HOD',
+          status: l.status
+        })),
+        ...serverCerts.map(c => ({
+          id: c.id,
+          type: `${c.type} Clearance`,
+          description: `Purpose: ${c.purpose || 'Institutional Document Request'}`,
+          date: c.dateApplied || c.issueDate || '2026-09-01',
+          approver: 'Academic Registrar / Dean Office',
+          status: c.status || 'Approved'
+        }))
+      ];
+
+      setApprovals(combined);
+    } catch (err) {
+      console.warn('Failed to fetch approvals from server:', err);
+      const leaves = getSharedLeaves();
+      setApprovals(leaves.map(l => ({
+        id: l.id,
+        type: `${l.type} Request`,
+        description: `${l.reason} (${l.fromDate} to ${l.toDate})`,
+        date: l.dateApplied,
+        approver: l.approvedBy || 'Department Faculty HOD',
+        status: l.status
+      })));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadApprovals();
     const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.LEAVE_STATUS_CHANGED, () => loadApprovals());
-    return () => unsub();
+    const unsubApply = subscribeToDataSync(DATA_SYNC_EVENTS.LEAVE_APPLIED, () => loadApprovals());
+    const unsubCert = subscribeToDataSync(DATA_SYNC_EVENTS.CERTIFICATE_REQUESTED, () => loadApprovals());
+    return () => {
+      unsub();
+      unsubApply();
+      unsubCert();
+    };
   }, []);
 
   return (

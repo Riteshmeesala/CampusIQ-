@@ -175,12 +175,10 @@ To cleanly terminate both servers and free ports `8080` and `3000`:
 
 | Role | Username | Password | Access Area |
 |---|---|---|---|
-| **Admin** | `admin` | `Admin@1234` | Full Administrative & ERP Console |
-| **Faculty** | `faculty1` | `Admin@1234` | Computer Science Department |
-| **Faculty** | `faculty2` | `Admin@1234` | Electronics Department |
-| **Student** | `ravi2268` | `Student@1234` | 3rd Year B.Tech CSE |
-| **Student** | `priya2269` | `Student@1234` | 3rd Year B.Tech CSE |
-| **Student** | `anjali2270` | `Student@1234` | 2nd Year B.Tech ECE |
+| **Admin** | `admin` | `Admin@123` | Full Administrative & ERP Console |
+| **Faculty** | `faculty_raj` | `Admin@123` | Computer Science Department |
+| **Student** | `24CS001` | `Student@123` | B.Tech CSE (Aarav Varma) |
+| **Student** | `Ritesh@0512` | `Student@123` | B.Tech CSE (Meesala Ritesh) |
 
 ---
 

@@ -80,4 +80,8 @@ public class AnnouncementService {
             default -> "📢";
         };
     }
+
+    public List<Notification> getAllAnnouncements() {
+        return notificationRepository.findAll();
+    }
 }

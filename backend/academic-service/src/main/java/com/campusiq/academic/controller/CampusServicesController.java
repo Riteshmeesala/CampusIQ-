@@ -10,6 +10,16 @@ import java.util.*;
 @RequestMapping("/campus-services")
 public class CampusServicesController {
 
+    @GetMapping({"", "/all"})
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getOverview() {
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+                "hostelAvailable", true,
+                "activeBuses", 14,
+                "currentYearbookEntries", 2,
+                "status", "All Campus Services Active"
+        )));
+    }
+
     @GetMapping("/hostel")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getHostelDetails() {
         Map<String, Object> hostel = Map.of(
@@ -27,7 +37,7 @@ public class CampusServicesController {
         return ResponseEntity.ok(ApiResponse.success(hostel));
     }
 
-    @GetMapping("/bus-routes")
+    @GetMapping({"/bus-routes", "/transport"})
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBusRoutes() {
         List<Map<String, Object>> routes = List.of(
                 Map.of("routeNo", "Route 14", "name", "Gachibowli Express", "busNo", "TS-09-UB-8821", "driver", "Ramesh (+91 98480 11223)", "speed", "38 km/h", "nextStop", "Cyber Towers", "status", "On Schedule"),

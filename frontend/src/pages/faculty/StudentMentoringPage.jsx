@@ -15,6 +15,7 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { mentoringAPI } from '../../services/api';
 import {
   getSharedCounseling, addSharedCounselingRemarks, bookSharedCounseling, subscribeToDataSync
 } from '../../services/dataSync';
@@ -27,10 +28,30 @@ export default function StudentMentoringPage() {
   const initialTab = parseInt(queryParams.get('tab') || '0', 10);
   const [tabIndex, setTabIndex] = useState(initialTab);
   const [counselingList, setCounselingList] = useState(getSharedCounseling());
+  const [loading, setLoading] = useState(false);
+
+  const loadCounseling = async () => {
+    try {
+      setLoading(true);
+      const res = await mentoringAPI.getAll();
+      const serverData = res.data?.data || res.data || [];
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        setCounselingList(serverData);
+      } else {
+        setCounselingList(getSharedCounseling());
+      }
+    } catch (err) {
+      console.warn('Failed to load counseling from backend, falling back:', err);
+      setCounselingList(getSharedCounseling());
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    loadCounseling();
     const unsub = subscribeToDataSync(() => {
-      setCounselingList(getSharedCounseling());
+      loadCounseling();
     });
     return unsub;
   }, []);
@@ -47,10 +68,16 @@ export default function StudentMentoringPage() {
   const [selectedMentee, setSelectedMentee] = useState(null);
   const [counselingNote, setCounselingNote] = useState('');
 
-  const handleSaveCounseling = () => {
+  const handleSaveCounseling = async () => {
     if (selectedMentee) {
-      addSharedCounselingRemarks(selectedMentee.id || 'CSL-2026-01', counselingNote, 'Satisfactory');
-      setCounselingList(getSharedCounseling());
+      const sessionId = selectedMentee.id || 'CSL-2026-01';
+      try {
+        await mentoringAPI.updateRemarks(sessionId, counselingNote);
+      } catch (err) {
+        console.warn('Failed to update remarks on server:', err);
+      }
+      addSharedCounselingRemarks(sessionId, counselingNote, 'Satisfactory');
+      await loadCounseling();
     }
     toast.success(`Mentoring counseling session remarks recorded for ${selectedMentee?.name || 'student'}.`);
     setOpen(false);

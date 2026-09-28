@@ -15,6 +15,7 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { courseAPI, timetableAPI } from '../../services/api';
 
 export default function CollegeAcademicsPage() {
   const location = useLocation();
@@ -24,6 +25,26 @@ export default function CollegeAcademicsPage() {
   const queryParams = new URLSearchParams(location.search);
   const initialTab = parseInt(queryParams.get('tab') || '0', 10);
   const [tabIndex, setTabIndex] = useState(initialTab);
+
+  const [courses, setCourses] = useState([]);
+  const [timetableSlots, setTimetableSlots] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.allSettled([
+      courseAPI.getAll(),
+      timetableAPI.getMy()
+    ]).then(([cRes, tRes]) => {
+      if (cRes.status === 'fulfilled') {
+        setCourses(cRes.value.data?.data || []);
+      }
+      if (tRes.status === 'fulfilled') {
+        setTimetableSlots(tRes.value.data?.data || []);
+      }
+      setLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     const qTab = queryParams.get('tab');

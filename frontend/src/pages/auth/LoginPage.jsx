@@ -19,6 +19,12 @@ const STAKEHOLDERS = [
   { role: 'ADMIN', label: 'Admin', icon: <AdminPanelSettings sx={{ fontSize: 18 }} />, placeholder: 'Enter Admin Username (e.g. admin)' },
 ];
 
+const DEFAULT_CREDS = {
+  ADMIN: { username: 'admin', password: 'Admin@123' },
+  FACULTY: { username: 'faculty_raj', password: 'Admin@123' },
+  STUDENT: { username: '24CS001', password: 'Student@123' },
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
   useLocation();
@@ -30,7 +36,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [alertMsg, setAlertMsg] = useState('');
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState(DEFAULT_CREDS.STUDENT);
   const [rememberMe, setRememberMe] = useState(true);
   const [otp, setOtp] = useState('');
   const [otpUser, setOtpUser] = useState(pendingEmail || '');
@@ -51,11 +57,13 @@ export default function LoginPage() {
         if (parsed?.username) {
           setForm({ username: parsed.username || '', password: parsed.password || '' });
           setRememberMe(true);
+          return;
         }
       } catch (err) {
         // ignore JSON parse error
       }
     }
+    setForm(DEFAULT_CREDS[lastRole] || DEFAULT_CREDS.STUDENT);
   }, [loading, isAuthenticated, user, navigate]);
 
   const handleStakeholderChange = (role) => {
@@ -73,7 +81,7 @@ export default function LoginPage() {
         }
       } catch (e) {}
     }
-    setForm({ username: '', password: '' });
+    setForm(DEFAULT_CREDS[role] || { username: '', password: '' });
   };
 
   const currentStakeholder = STAKEHOLDERS.find(s => s.role === activeStakeholder) || STAKEHOLDERS[0];
@@ -541,6 +549,47 @@ export default function LoginPage() {
               >
                 {busy ? 'Authenticating...' : 'Login'}
               </button>
+
+              {/* Quick Login Stakeholder Chips */}
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, textAlign: 'center' }}>
+                  Quick Fill Stakeholder
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {[
+                    { role: 'ADMIN', label: 'Admin', icon: '🛡️', un: 'admin' },
+                    { role: 'FACULTY', label: 'Faculty', icon: '👨‍🏫', un: 'faculty_raj' },
+                    { role: 'STUDENT', label: 'Student', icon: '🎓', un: '24CS001' }
+                  ].map((s) => (
+                    <button
+                      key={s.role}
+                      type="button"
+                      onClick={() => {
+                        handleStakeholderChange(s.role);
+                        setForm(DEFAULT_CREDS[s.role]);
+                      }}
+                      style={{
+                        padding: '6px 4px',
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        borderRadius: 6,
+                        border: activeStakeholder === s.role ? '1.5px solid #0099ff' : '1px solid #cbd5e1',
+                        backgroundColor: activeStakeholder === s.role ? '#eff6ff' : '#f8fafc',
+                        color: activeStakeholder === s.role ? '#0284c7' : '#334155',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2
+                      }}
+                    >
+                      <span>{s.icon} {s.label}</span>
+                      <span style={{ fontSize: 9.5, color: '#64748b' }}>({s.un})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </form>
           ) : (
             /* OTP Form */

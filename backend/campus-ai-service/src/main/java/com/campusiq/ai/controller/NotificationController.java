@@ -25,7 +25,7 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @GetMapping
+    @GetMapping({"", "/my"})
     public ResponseEntity<ApiResponse<List<Notification>>> getAll(
             @AuthenticationPrincipal UserPrincipal me,
             @RequestParam(defaultValue = "0") int page,

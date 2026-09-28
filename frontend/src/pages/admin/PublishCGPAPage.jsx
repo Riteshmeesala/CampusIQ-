@@ -6,7 +6,7 @@ import {
   FormControl, InputLabel, Dialog, DialogTitle, DialogContent, DialogActions,
   Tooltip, IconButton,
 } from '@mui/material';
-import { Upload, CheckCircle, Info, RestartAlt } from '@mui/icons-material';
+import { Upload, CheckCircle, Info, RestartAlt, PersonAdd } from '@mui/icons-material';
 import { userAPI, cgpaUploadAPI } from '../../services/api';
 import { updateSharedStudentCgpa } from '../../services/dataSync';
 import PageHeader from '../../components/shared/PageHeader';
@@ -35,6 +35,44 @@ export default function PublishCGPAPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [csvText,   setCsvText]   = useState('');
   const [csvError,  setCsvError]  = useState('');
+
+  // Manual Student Entry Modal State
+  const [manualStudentDialog, setManualStudentDialog] = useState(false);
+  const [manualStudentForm, setManualStudentForm] = useState({
+    rollNo: '',
+    name: '',
+    cgpa: '',
+    department: 'Computer Science'
+  });
+
+  const handleAddManualStudent = () => {
+    if (!manualStudentForm.rollNo.trim() || !manualStudentForm.cgpa.trim()) {
+      toast.warning('Please enter Roll Number and CGPA');
+      return;
+    }
+    const val = parseFloat(manualStudentForm.cgpa);
+    if (isNaN(val) || val < 0 || val > 10) {
+      toast.warning('CGPA must be between 0.00 and 10.00');
+      return;
+    }
+    const matched = students.find(s => s.enrollmentNumber?.toLowerCase() === manualStudentForm.rollNo.trim().toLowerCase());
+    const studentId = matched ? matched.id : Date.now();
+
+    if (!matched) {
+      const newS = {
+        id: studentId,
+        enrollmentNumber: manualStudentForm.rollNo.trim().toUpperCase(),
+        name: manualStudentForm.name.trim() || manualStudentForm.rollNo.trim().toUpperCase(),
+        department: manualStudentForm.department
+      };
+      setStudents(prev => [newS, ...prev]);
+    }
+
+    setCgpaMap(prev => ({ ...prev, [studentId]: String(val) }));
+    toast.success(`Added ${manualStudentForm.rollNo} with CGPA ${val} to publishing list!`);
+    setManualStudentDialog(false);
+    setManualStudentForm({ rollNo: '', name: '', cgpa: '', department: 'Computer Science' });
+  };
 
   /* ── Load students ────────────────────────────────────────── */
   useEffect(() => {
@@ -225,9 +263,18 @@ export default function PublishCGPAPage() {
       {/* ── Step 3: Manual entry table ── */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: 0 }}>
-          <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
             <Typography variant="h6" fontWeight={700}>Step 3 — Enter / Review CGPA Values</Typography>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<PersonAdd />}
+                onClick={() => setManualStudentDialog(true)}
+                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, bgcolor: COLORS.primary }}
+              >
+                ➕ Add Student Manually
+              </Button>
               <Chip
                 label={`${filledCount}/${students.length} filled`}
                 size="small"
@@ -373,6 +420,54 @@ export default function PublishCGPAPage() {
           <Button onClick={handlePublish} variant="contained"
             sx={{ bgcolor: COLORS.primary, borderRadius: 2 }}>
             Yes, Publish
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manual Student CGPA Entry Dialog */}
+      <Dialog open={manualStudentDialog} onClose={() => setManualStudentDialog(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: COLORS.primary }}>
+          ➕ Add Student to CGPA Ledger
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '10px !important' }}>
+          <TextField
+            label="Roll Number / Enrollment No. *"
+            size="small"
+            placeholder="e.g. 24CS001"
+            value={manualStudentForm.rollNo}
+            onChange={e => setManualStudentForm(p => ({ ...p, rollNo: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Student Full Name (optional)"
+            size="small"
+            placeholder="e.g. Ritesh Meesala"
+            value={manualStudentForm.name}
+            onChange={e => setManualStudentForm(p => ({ ...p, name: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="CGPA / SGPA (0.00 – 10.00) *"
+            size="small"
+            type="number"
+            placeholder="e.g. 8.95"
+            value={manualStudentForm.cgpa}
+            onChange={e => setManualStudentForm(p => ({ ...p, cgpa: e.target.value }))}
+            inputProps={{ min: 0, max: 10, step: 0.01 }}
+            fullWidth
+          />
+          <TextField
+            label="Department"
+            size="small"
+            value={manualStudentForm.department}
+            onChange={e => setManualStudentForm(p => ({ ...p, department: e.target.value }))}
+            fullWidth
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setManualStudentDialog(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddManualStudent} sx={{ bgcolor: COLORS.primary }}>
+            Add to List
           </Button>
         </DialogActions>
       </Dialog>

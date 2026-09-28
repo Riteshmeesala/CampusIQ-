@@ -8,6 +8,7 @@ import {
 import {
   WorkspacePremium, Print, Download, Verified, QrCode2
 } from '@mui/icons-material';
+import { certificateAPI } from '../../services/api';
 import {
   getSharedCertificates, requestSharedCertificate, subscribeToDataSync
 } from '../../services/dataSync';
@@ -15,15 +16,35 @@ import {
 export default function StudentCertificatesPortalPage({ initialTab = 0 }) {
   const [tabIndex, setTabIndex] = useState(initialTab);
   const [certList, setCertList] = useState(getSharedCertificates());
+  const [loading, setLoading] = useState(false);
   const [previewCert, setPreviewCert] = useState(null);
   const [applyModal, setApplyModal] = useState(false);
   const [certType, setCertType] = useState('Study And Conduct Certificate');
   const [purpose, setPurpose] = useState('');
   const [appliedSuccess, setAppliedSuccess] = useState(false);
 
-  useEffect(() => {
-    const unsub = subscribeToDataSync(() => {
+  const loadCertificates = async () => {
+    try {
+      setLoading(true);
+      const res = await certificateAPI.getMyCertificates();
+      const serverCerts = res.data?.data || res.data || [];
+      if (Array.isArray(serverCerts) && serverCerts.length > 0) {
+        setCertList(serverCerts);
+      } else {
+        setCertList(getSharedCertificates());
+      }
+    } catch (err) {
+      console.warn('Failed to load certificates from server, using local fallback:', err);
       setCertList(getSharedCertificates());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCertificates();
+    const unsub = subscribeToDataSync(() => {
+      loadCertificates();
     });
     return unsub;
   }, []);
@@ -40,21 +61,33 @@ export default function StudentCertificatesPortalPage({ initialTab = 0 }) {
     setAppliedSuccess(false);
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!purpose) return;
     const newCert = {
-      id: `CERT-${certType.includes('Transfer') ? 'TC' : certType.includes('Custodian') ? 'CUST' : 'SCC'}-2026-${Math.floor(100 + Math.random() * 900)}`,
       studentName: 'Ritesh Meesala',
-      rollNo: '23CS042',
+      rollNo: '24CS001',
       type: certType,
+      purpose,
       applyDate: new Date().toISOString().split('T')[0],
       issueDate: 'Pending Verification',
       status: 'In Processing',
       verifiedBy: 'Registrar Office'
     };
-    const updated = requestSharedCertificate(newCert);
-    setCertList(updated);
-    setAppliedSuccess(true);
+
+    try {
+      const res = await certificateAPI.requestCertificate(newCert);
+      const created = res.data?.data || res.data || newCert;
+      requestSharedCertificate(created);
+      await loadCertificates();
+      setAppliedSuccess(true);
+      setPurpose('');
+    } catch (err) {
+      console.error('Error submitting certificate to server:', err);
+      requestSharedCertificate(newCert);
+      setCertList(getSharedCertificates());
+      setAppliedSuccess(true);
+      setPurpose('');
+    }
   };
 
   return (

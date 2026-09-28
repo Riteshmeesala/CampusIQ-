@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, Button, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -10,9 +10,21 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { courseAPI } from '../../services/api';
 
 export default function StudentLessonPlanPage() {
   const [selectedCourse, setSelectedCourse] = useState('CS401');
+  const [courses, setCourses] = useState([]);
+
+  useEffect(() => {
+    courseAPI.getAll().then(res => {
+      const list = res.data?.data || [];
+      setCourses(list);
+      if (list.length > 0) {
+        setSelectedCourse(list[0].courseCode || 'CS401');
+      }
+    }).catch(() => {});
+  }, []);
 
   const lessonPlanData = [
     { no: 1, unit: 'Unit 1', topic: 'Introduction to Operating Systems & Evolution', planned: '10 Jan 2024', actual: '10 Jan 2024', co: 'CO1', method: 'Chalk & Board + PPT', status: 'COMPLETED' },
@@ -47,10 +59,20 @@ export default function StudentLessonPlanPage() {
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <TextField select fullWidth size="small" label="Select Enrolled Subject" value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}>
-              <MenuItem value="CS401">CS401: Operating Systems & Architecture</MenuItem>
-              <MenuItem value="CS403">CS403: Artificial Intelligence</MenuItem>
-              <MenuItem value="CS405">CS405: Full Stack Web Dev Lab</MenuItem>
-              <MenuItem value="CS407">CS407: Computer Networks</MenuItem>
+              {courses.length > 0 ? (
+                courses.map(c => (
+                  <MenuItem key={c.id || c.courseCode} value={c.courseCode}>
+                    {c.courseCode}: {c.courseName}
+                  </MenuItem>
+                ))
+              ) : (
+                <>
+                  <MenuItem value="CS401">CS401: Operating Systems & Architecture</MenuItem>
+                  <MenuItem value="CS403">CS403: Artificial Intelligence</MenuItem>
+                  <MenuItem value="CS405">CS405: Full Stack Web Dev Lab</MenuItem>
+                  <MenuItem value="CS407">CS407: Computer Networks</MenuItem>
+                </>
+              )}
             </TextField>
           </Grid>
           <Grid item xs={12} sm={8}>

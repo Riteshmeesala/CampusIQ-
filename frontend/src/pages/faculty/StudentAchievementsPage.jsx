@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, Button, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -12,10 +12,22 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { getSharedAchievements, saveSharedAchievement, subscribeToDataSync, DATA_SYNC_EVENTS } from '../../services/dataSync';
 
 export default function StudentAchievementsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ roll: '', name: '', event: '', prize: '1st Prize / Winner', org: '', date: '' });
+  const [sharedAchievements, setSharedAchievements] = useState([]);
+
+  const loadAchievements = () => {
+    setSharedAchievements(getSharedAchievements());
+  };
+
+  useEffect(() => {
+    loadAchievements();
+    const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.ACHIEVEMENT_SUBMITTED, () => loadAchievements());
+    return () => unsub();
+  }, []);
 
   const handleVerify = (name) => {
     toast.success(`Achievement certificate officially verified and added to student transcript: ${name}`);
@@ -79,6 +91,15 @@ export default function StudentAchievementsPage() {
               </TableHead>
               <TableBody>
                 {[
+                  ...sharedAchievements.map(a => ({
+                    roll: a.rollNo || '24CS001',
+                    name: a.studentName || 'Student',
+                    event: a.title,
+                    prize: a.category || '1st Prize / Honor',
+                    org: a.org,
+                    date: a.date,
+                    status: (a.status || 'VERIFIED').toUpperCase()
+                  })),
                   { roll: '21CS001', name: 'Aarav Patel', event: 'Smart India Hackathon 2023 (Grand Finale)', prize: 'Winner (1st Prize - ₹ 1 Lakh)', org: 'Ministry of Education, Govt of India', date: 'Dec 2023', status: 'VERIFIED' },
                   { roll: '21CS014', name: 'Bhavna Sharma', event: 'IEEE International Student Paper Contest', prize: 'Best Technical Paper Award', org: 'IEEE Hyderabad Section', date: 'Jan 2024', status: 'VERIFIED' },
                   { roll: '21CS045', name: 'Rahul Reddy K.', event: 'ACM ICPC Regional Programming Contest', prize: 'Rank 12 (Honorable Mention)', org: 'ACM Asia Regional', date: 'Nov 2023', status: 'VERIFIED' },

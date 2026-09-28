@@ -55,8 +55,11 @@ public class StudentAcademicRecord {
     @Column(name = "mid1_objective_marks", precision = 5, scale = 2)
     private BigDecimal mid1ObjectiveMarks = BigDecimal.valueOf(18.00); // Max 20 (/2 -> 9)
 
+    @Column(name = "mid1_assignment_marks", precision = 5, scale = 2)
+    private BigDecimal mid1AssignmentMarks = BigDecimal.valueOf(5.00); // Max 5
+
     @Column(name = "mid1_total_marks", precision = 5, scale = 2)
-    private BigDecimal mid1TotalMarks = BigDecimal.valueOf(22.00); // Max 25 (9+4+9)
+    private BigDecimal mid1TotalMarks = BigDecimal.valueOf(22.00); // Max 30 (10+5+5+10)
 
     // ── MID-2 EXAMINATION (Continuous Assessment 2) ──
     @Column(name = "mid2_descriptive_marks", precision = 5, scale = 2)
@@ -68,12 +71,15 @@ public class StudentAcademicRecord {
     @Column(name = "mid2_objective_marks", precision = 5, scale = 2)
     private BigDecimal mid2ObjectiveMarks = BigDecimal.valueOf(19.00); // Max 20 (/2 -> 9.5)
 
-    @Column(name = "mid2_total_marks", precision = 5, scale = 2)
-    private BigDecimal mid2TotalMarks = BigDecimal.valueOf(23.50); // Max 25 (9.5+4.5+9.5)
+    @Column(name = "mid2_assignment_marks", precision = 5, scale = 2)
+    private BigDecimal mid2AssignmentMarks = BigDecimal.valueOf(5.00); // Max 5
 
-    // ── COMBINED INTERNAL EVALUATION (Avg of Mid-1 & Mid-2, Max 25) ──
+    @Column(name = "mid2_total_marks", precision = 5, scale = 2)
+    private BigDecimal mid2TotalMarks = BigDecimal.valueOf(23.50); // Max 30
+
+    // ── COMBINED INTERNAL EVALUATION (Max 30) ──
     @Column(name = "converted_internal_marks", precision = 5, scale = 2)
-    private BigDecimal convertedInternalMarks = BigDecimal.valueOf(22.75); // (22.00 + 23.50)/2 = 22.75
+    private BigDecimal convertedInternalMarks = BigDecimal.valueOf(27.00);
 
     // Legacy fields for backward compatibility
     @Column(name = "descriptive_marks", precision = 5, scale = 2)
@@ -85,13 +91,16 @@ public class StudentAcademicRecord {
     @Column(name = "objective_marks", precision = 5, scale = 2)
     private BigDecimal objectiveMarks = BigDecimal.valueOf(18.00);
 
+    @Column(name = "assignment_marks", precision = 5, scale = 2)
+    private BigDecimal assignmentMarks = BigDecimal.valueOf(5.00);
+
     @Column(name = "mid_marks", precision = 5, scale = 2)
-    private BigDecimal midMarks = BigDecimal.valueOf(22.00);
+    private BigDecimal midMarks = BigDecimal.valueOf(27.00);
 
     @Column(name = "internal_marks", precision = 5, scale = 2)
-    private BigDecimal internalMarks = BigDecimal.valueOf(22.75);
+    private BigDecimal internalMarks = BigDecimal.valueOf(27.00);
 
-    // ── SEMESTER / EXTERNAL EXAMINATION (Max 70 / 75) ──
+    // ── SEMESTER / EXTERNAL EXAMINATION (Max 70) ──
     @Column(name = "semester_marks", precision = 5, scale = 2)
     private BigDecimal semesterMarks = BigDecimal.valueOf(65.00);
 
@@ -158,6 +167,13 @@ public class StudentAcademicRecord {
     public BigDecimal getMid2TotalMarks() { return mid2TotalMarks; }
     public void setMid2TotalMarks(BigDecimal mid2TotalMarks) { this.mid2TotalMarks = mid2TotalMarks; }
 
+    public BigDecimal getMid1AssignmentMarks() { return mid1AssignmentMarks; }
+    public void setMid1AssignmentMarks(BigDecimal mid1AssignmentMarks) { this.mid1AssignmentMarks = mid1AssignmentMarks; }
+    public BigDecimal getMid2AssignmentMarks() { return mid2AssignmentMarks; }
+    public void setMid2AssignmentMarks(BigDecimal mid2AssignmentMarks) { this.mid2AssignmentMarks = mid2AssignmentMarks; }
+    public BigDecimal getAssignmentMarks() { return assignmentMarks; }
+    public void setAssignmentMarks(BigDecimal assignmentMarks) { this.assignmentMarks = assignmentMarks; }
+
     public BigDecimal getConvertedInternalMarks() { return convertedInternalMarks; }
     public void setConvertedInternalMarks(BigDecimal convertedInternalMarks) { this.convertedInternalMarks = convertedInternalMarks; }
     public BigDecimal getDescriptiveMarks() { return descriptiveMarks; }
@@ -204,15 +220,18 @@ public class StudentAcademicRecord {
         public Builder mid1DescriptiveMarks(BigDecimal m1d) { r.setMid1DescriptiveMarks(m1d); return this; }
         public Builder mid1OpenBookMarks(BigDecimal m1ob) { r.setMid1OpenBookMarks(m1ob); return this; }
         public Builder mid1ObjectiveMarks(BigDecimal m1obj) { r.setMid1ObjectiveMarks(m1obj); return this; }
+        public Builder mid1AssignmentMarks(BigDecimal m1as) { r.setMid1AssignmentMarks(m1as); return this; }
         public Builder mid1TotalMarks(BigDecimal m1t) { r.setMid1TotalMarks(m1t); return this; }
         public Builder mid2DescriptiveMarks(BigDecimal m2d) { r.setMid2DescriptiveMarks(m2d); return this; }
         public Builder mid2OpenBookMarks(BigDecimal m2ob) { r.setMid2OpenBookMarks(m2ob); return this; }
         public Builder mid2ObjectiveMarks(BigDecimal m2obj) { r.setMid2ObjectiveMarks(m2obj); return this; }
+        public Builder mid2AssignmentMarks(BigDecimal m2as) { r.setMid2AssignmentMarks(m2as); return this; }
         public Builder mid2TotalMarks(BigDecimal m2t) { r.setMid2TotalMarks(m2t); return this; }
         public Builder convertedInternalMarks(BigDecimal cim) { r.setConvertedInternalMarks(cim); return this; }
         public Builder descriptiveMarks(BigDecimal dm) { r.setDescriptiveMarks(dm); return this; }
         public Builder openBookMarks(BigDecimal obm) { r.setOpenBookMarks(obm); return this; }
         public Builder objectiveMarks(BigDecimal om) { r.setObjectiveMarks(om); return this; }
+        public Builder assignmentMarks(BigDecimal am) { r.setAssignmentMarks(am); return this; }
         public Builder midMarks(BigDecimal mm) { r.setMidMarks(mm); return this; }
         public Builder internalMarks(BigDecimal im) { r.setInternalMarks(im); return this; }
         public Builder semesterMarks(BigDecimal sm) { r.setSemesterMarks(sm); return this; }

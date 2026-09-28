@@ -12,14 +12,34 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { broadcastDataChange } from '../../services/dataSync';
 
 export default function AcademicUploadsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', course: 'CS401', type: 'Lecture Notes (PDF)', unit: 'Unit 3' });
 
   const handleUpload = () => {
-    toast.success(`Academic material "${form.title || 'Course Notes'}" uploaded and published to student portal.`);
+    if (!form.title.trim()) {
+      toast.warning('Document title is required');
+      return;
+    }
+    const newMaterial = {
+      id: Date.now(),
+      title: form.title,
+      type: form.type || 'Lecture Notes (PDF)',
+      code: form.course || 'CS401',
+      size: '6.4 MB',
+      author: 'Faculty Member',
+      year: 'Current Term'
+    };
+
+    const existing = JSON.parse(localStorage.getItem('campusiq_study_materials') || '[]');
+    localStorage.setItem('campusiq_study_materials', JSON.stringify([newMaterial, ...existing]));
+
+    broadcastDataChange('STUDY_MATERIAL_UPLOADED', { material: newMaterial });
+    toast.success(`Academic material "${form.title}" uploaded and published to student portal.`);
     setOpen(false);
+    setForm({ title: '', course: 'CS401', type: 'Lecture Notes (PDF)', unit: 'Unit 3' });
   };
 
   return (

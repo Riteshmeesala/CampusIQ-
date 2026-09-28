@@ -14,6 +14,7 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { libraryAPI } from '../../services/api';
 
 export default function DigitalLibraryPage() {
   const location = useLocation();
@@ -39,6 +40,28 @@ export default function DigitalLibraryPage() {
     { acc: 'ACC-91024', title: 'Deep Learning with Python (François Chollet)', borrower: 'Aarav Patel (21CS001)', issued: '15 Feb 2024', due: '01 Mar 2024', status: 'ACTIVE LOAN' },
     { acc: 'ACC-73819', title: 'Computer Networks: A Top-Down Approach', borrower: 'Divya Reddy (21CS035)', issued: '04 Feb 2024', due: '18 Feb 2024', status: 'OVERDUE (3 DAYS)' },
   ]);
+
+  useEffect(() => {
+    const loadServerLibrary = async () => {
+      try {
+        const res = await libraryAPI.getBorrowed();
+        const serverData = res.data?.data || res.data || [];
+        if (Array.isArray(serverData) && serverData.length > 0) {
+          setIssuedBooks(serverData.map(b => ({
+            acc: b.id || 'ACC-9901',
+            title: b.bookTitle || b.title,
+            borrower: b.borrower || 'Ritesh Meesala (Student)',
+            issued: b.issueDate || '15 Aug 2026',
+            due: b.dueDate || '15 Sep 2026',
+            status: b.status === 'Active' ? 'ACTIVE LOAN' : b.status
+          })));
+        }
+      } catch (err) {
+        console.warn('Failed to load borrowed books from server:', err);
+      }
+    };
+    loadServerLibrary();
+  }, []);
 
   const handleIssueBook = () => {
     if (!issueForm.accNumber || !issueForm.borrower) {

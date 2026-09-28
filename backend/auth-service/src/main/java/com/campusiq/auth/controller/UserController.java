@@ -347,6 +347,27 @@ public class UserController {
         return ResponseEntity.status(201).body(ApiResponse.success(result, "Successfully created " + created.size() + " faculty accounts"));
     }
 
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserStats() {
+        List<User> students = userRepository.findByRole(Role.STUDENT);
+        List<User> faculty = userRepository.findByRole(Role.FACULTY);
+        List<User> admins = userRepository.findByRole(Role.ADMIN);
+
+        long activeStudents = students.stream().filter(User::isActive).count();
+        long verifiedStudents = students.stream().filter(u -> Boolean.TRUE.equals(u.getIsVerified())).count();
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalUsers", students.size() + faculty.size() + admins.size());
+        stats.put("totalStudents", students.size());
+        stats.put("totalFaculty", faculty.size());
+        stats.put("totalAdmins", admins.size());
+        stats.put("activeStudents", activeStudents);
+        stats.put("verifiedStudents", verifiedStudents);
+        stats.put("pendingVerification", students.size() - verifiedStudents);
+
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<User>> getById(@PathVariable Long id,
                                                      @AuthenticationPrincipal UserPrincipal me) {

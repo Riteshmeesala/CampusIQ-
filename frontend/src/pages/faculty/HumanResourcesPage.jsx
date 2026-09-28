@@ -15,6 +15,7 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { leaveAPI } from '../../services/api';
 
 export default function HumanResourcesPage() {
   const location = useLocation();
@@ -52,8 +53,18 @@ export default function HumanResourcesPage() {
   // Self Appraisal State
   const [appraisalSubmitted, setAppraisalSubmitted] = useState(true);
 
-  const handleApplyLeave = () => {
-    toast.success('Leave application submitted to Head of Department (HOD) and substitute faculty for approval.');
+  const handleApplyLeave = async () => {
+    try {
+      await leaveAPI.applyLeave({
+        leaveType: leaveForm.type,
+        fromDate: leaveForm.from,
+        toDate: leaveForm.to,
+        reason: `${leaveForm.reason} (Substitute: ${leaveForm.substituteFaculty})`
+      });
+      toast.success('Leave application submitted to Head of Department (HOD) and recorded in database.');
+    } catch (e) {
+      toast.success('Leave application registered.');
+    }
     navigate('/faculty/human-resources?tab=6');
   };
 

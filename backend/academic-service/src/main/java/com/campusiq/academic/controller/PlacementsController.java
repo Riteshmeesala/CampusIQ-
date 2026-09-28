@@ -42,7 +42,7 @@ public class PlacementsController {
         ));
     }
 
-    @GetMapping("/drives")
+    @GetMapping({"", "/drives"})
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDrives() {
         return ResponseEntity.ok(ApiResponse.success(drives));
     }

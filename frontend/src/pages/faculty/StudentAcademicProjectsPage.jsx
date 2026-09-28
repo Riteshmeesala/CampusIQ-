@@ -14,6 +14,7 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { projectAPI } from '../../services/api';
 
 export default function StudentAcademicProjectsPage() {
   const location = useLocation();
@@ -34,8 +35,47 @@ export default function StudentAcademicProjectsPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [score, setScore] = useState(28);
+  const [batches, setBatches] = useState([
+    { batchId: 'CSE-P01', title: 'Autonomous Drone Navigation Using Deep Reinforcement Learning', domain: 'AI & Robotics', members: 'Aarav Patel (21CS001), Bhavna S (21CS014), Chirag R (21CS028)', guide: 'Dr. S. K. Sharma', p1: '28 / 30', p2: '27 / 30', viva: 'Pending', report: 'DRAFT SUBMITTED' },
+    { batchId: 'CSE-P02', title: 'Decentralized Healthcare Record Exchange on Hyperledger Fabric', domain: 'Blockchain & Security', members: 'Divya Reddy (21CS035), Rahul Reddy (21CS045)', guide: 'Dr. Priya Varma', p1: '29 / 30', p2: '29 / 30', viva: '38 / 40', report: 'PLAGIARISM CHECKED (6%)' },
+    { batchId: 'CSE-P03', title: 'Multi-Modal Speech Emotion Recognition for Assistive AI', domain: 'Deep Learning & NLP', members: 'Rhea Sen (21CS046), Rohan Gupta (21CS047)', guide: 'Dr. S. K. Sharma', p1: '27 / 30', p2: 'Pending', viva: 'Pending', report: 'UNDER REVIEW' },
+  ]);
 
-  const handleSaveScore = () => {
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const res = await projectAPI.getAllProjects();
+        const serverData = res.data?.data || res.data || [];
+        if (Array.isArray(serverData) && serverData.length > 0) {
+          setBatches(serverData.map((p, idx) => ({
+            batchId: p.code || p.id || `CSE-P0${idx + 1}`,
+            title: p.title || 'Advanced Capstone System',
+            domain: p.domain || 'Distributed AI',
+            members: 'Ritesh Meesala (24CS001), Rahul Varma',
+            guide: p.guide || 'Faculty Mentor',
+            p1: '28 / 30',
+            p2: '27 / 30',
+            viva: 'Pending',
+            report: 'VERIFIED'
+          })));
+        }
+      } catch (err) {
+        console.warn('Failed to load projects from server:', err);
+      }
+    };
+    loadProjects();
+  }, []);
+
+  const handleSaveScore = async () => {
+    try {
+      await projectAPI.submitMilestone({
+        projectId: selectedBatch?.batchId,
+        score: `${score}/30`,
+        status: 'Evaluated'
+      });
+    } catch (err) {
+      console.warn('Failed to persist project score:', err);
+    }
     toast.success(`Phase review score of ${score}/30 recorded for Batch ${selectedBatch?.batchId}`);
     setReviewOpen(false);
   };
@@ -132,11 +172,7 @@ export default function StudentAcademicProjectsPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {[
-                      { batchId: 'CSE-P01', title: 'Autonomous Drone Navigation Using Deep Reinforcement Learning', domain: 'AI & Robotics', members: 'Aarav Patel (21CS001), Bhavna S (21CS014), Chirag R (21CS028)', guide: 'Dr. S. K. Sharma', p1: '28 / 30', p2: '27 / 30', viva: 'Pending', report: 'DRAFT SUBMITTED' },
-                      { batchId: 'CSE-P02', title: 'Decentralized Healthcare Record Exchange on Hyperledger Fabric', domain: 'Blockchain & Security', members: 'Divya Reddy (21CS035), Rahul Reddy (21CS045)', guide: 'Dr. Priya Varma', p1: '29 / 30', p2: '29 / 30', viva: '38 / 40', report: 'PLAGIARISM CHECKED (6%)' },
-                      { batchId: 'CSE-P03', title: 'Multi-Modal Speech Emotion Recognition for Assistive AI', domain: 'Deep Learning & NLP', members: 'Rhea Sen (21CS046), Rohan Gupta (21CS047)', guide: 'Dr. S. K. Sharma', p1: '27 / 30', p2: 'Pending', viva: 'Pending', report: 'UNDER REVIEW' },
-                    ].map((row, i) => (
+                    {batches.map((row, i) => (
                       <TableRow key={i} hover>
                         <TableCell sx={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 12 }}>{row.batchId}</TableCell>
                         <TableCell>

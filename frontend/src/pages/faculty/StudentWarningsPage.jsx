@@ -12,19 +12,41 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { warningAPI } from '../../services/api';
 import { broadcastDataChange, subscribeToDataSync } from '../../services/dataSync';
 
 export default function StudentWarningsPage() {
   const [open, setOpen] = useState(false);
-  const [warnings, setWarnings] = useState(() => {
-    const saved = localStorage.getItem('campusiq_student_warnings');
-    return saved ? JSON.parse(saved) : [
-      { id: 'WARN-2024-001', date: '18 Feb 2024', roll: '21CS045', name: 'Rahul Reddy K.', type: 'Attendance Shortage (<65%)', severity: 'CRITICAL', parentNotified: 'SMS + EMAIL DISPATCHED', status: 'PARENTS COUNSELED' },
-      { id: 'WARN-2024-002', date: '15 Feb 2024', roll: '21CS078', name: 'Sanya Mirza M.', type: 'Multiple Academic Backlogs (3)', severity: 'HIGH', parentNotified: 'SMS SENT', status: 'REMEDIAL ASSIGNED' },
-      { id: 'WARN-2024-003', date: '08 Feb 2024', roll: '21CS092', name: 'Vikram Aditya J.', type: 'Continuous Absenteeism (5 Days)', severity: 'CRITICAL', parentNotified: 'REGISTERED POST', status: 'PENDING EXPLANATION' },
-      { id: 'WARN-2024-004', date: '02 Feb 2024', roll: '21CS019', name: 'Deepak Verma', type: 'Lab Performance & Record Deficit', severity: 'MEDIUM', parentNotified: 'PORTAL ALERT', status: 'RESOLVED' },
-    ];
-  });
+  const [loading, setLoading] = useState(false);
+  const [warnings, setWarnings] = useState([]);
+
+  const loadWarnings = async () => {
+    try {
+      setLoading(true);
+      const res = await warningAPI.getAll();
+      const serverData = res.data?.data || res.data || [];
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        setWarnings(serverData);
+      } else {
+        const saved = localStorage.getItem('campusiq_student_warnings');
+        if (saved) setWarnings(JSON.parse(saved));
+      }
+    } catch (err) {
+      console.warn('Failed to load warnings from server:', err);
+      const saved = localStorage.getItem('campusiq_student_warnings');
+      if (saved) setWarnings(JSON.parse(saved));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWarnings();
+    const unsub = subscribeToDataSync(() => {
+      loadWarnings();
+    });
+    return unsub;
+  }, []);
 
   const [form, setForm] = useState({
     roll: '21CS045',
@@ -34,26 +56,41 @@ export default function StudentWarningsPage() {
     remarks: 'Attendance fallen below 65%. Ineligible for End-Semester examinations unless condonation approved.'
   });
 
-  const handleIssueWarning = () => {
-    const newNotice = {
-      id: `WARN-2024-00${warnings.length + 1}`,
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      roll: form.roll,
-      name: form.name,
+  const handleIssueWarning = async () => {
+    const payload = {
+      rollNo: form.roll,
+      studentName: form.name,
       type: form.type,
       severity: form.severity,
-      parentNotified: 'SMS + EMAIL DISPATCHED',
-      status: 'PENDING EXPLANATION'
+      text: form.remarks,
+      issuedBy: 'Faculty Committee',
     };
 
-    const updated = [newNotice, ...warnings];
-    setWarnings(updated);
-    localStorage.setItem('campusiq_student_warnings', JSON.stringify(updated));
-
-    // Broadcast across all roles (Student will immediately see disciplinary warning in their portal)
-    broadcastDataChange('STUDENT_WARNING_ISSUED', { warning: newNotice, allWarnings: updated });
-
-    toast.success(`Formal warning notice ${newNotice.id} issued and synced to ${form.name}'s student portal!`);
+    try {
+      const res = await warningAPI.issueWarning(payload);
+      const created = res.data?.data || res.data || payload;
+      const updated = [created, ...warnings];
+      setWarnings(updated);
+      localStorage.setItem('campusiq_student_warnings', JSON.stringify(updated));
+      broadcastDataChange('STUDENT_WARNING_ISSUED', { warning: created, allWarnings: updated });
+      toast.success(`Formal warning notice issued and synced to backend!`);
+    } catch (err) {
+      console.warn('Failed to issue warning to server, saving locally:', err);
+      const newNotice = {
+        id: `WARN-2024-00${warnings.length + 1}`,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        roll: form.roll,
+        name: form.name,
+        type: form.type,
+        severity: form.severity,
+        text: form.remarks,
+        status: 'PENDING EXPLANATION'
+      };
+      const updated = [newNotice, ...warnings];
+      setWarnings(updated);
+      localStorage.setItem('campusiq_student_warnings', JSON.stringify(updated));
+      toast.success(`Warning saved locally`);
+    }
     setOpen(false);
   };
 

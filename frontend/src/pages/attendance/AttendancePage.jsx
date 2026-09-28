@@ -55,6 +55,109 @@ export default function AttendancePage() {
   const [attendanceMap, setAttendanceMap] = useState({}); // { studentId: 'PRESENT' | 'ABSENT' | 'LATE' | 'OD' }
   const [saving, setSaving] = useState(false);
 
+  // Manual Input Features
+  const [manualStudentOpen, setManualStudentOpen] = useState(false);
+  const [manualStudent, setManualStudent] = useState({
+    enrollmentNumber: '',
+    name: '',
+    department: 'Computer Science',
+    section: 'Section A',
+    status: 'PRESENT'
+  });
+
+  const [quickManualOpen, setQuickManualOpen] = useState(false);
+  const [quickManual, setQuickManual] = useState({
+    enrollmentNumber: '',
+    courseCode: '',
+    date: new Date().toISOString().split('T')[0],
+    slot: '09:00 AM - 10:00 AM (Period 1)',
+    status: 'PRESENT',
+    remarks: 'Manual entry by faculty'
+  });
+
+  const handleAddManualStudent = () => {
+    if (!manualStudent.enrollmentNumber.trim() || !manualStudent.name.trim()) {
+      toast.warning('Please enter Student Roll Number and Name');
+      return;
+    }
+    const exists = students.some(s => s.enrollmentNumber?.toLowerCase() === manualStudent.enrollmentNumber.trim().toLowerCase());
+    if (exists) {
+      toast.info(`Student ${manualStudent.enrollmentNumber} is already in the roster.`);
+      setManualStudentOpen(false);
+      return;
+    }
+    const newStudent = {
+      id: Date.now(),
+      enrollmentNumber: manualStudent.enrollmentNumber.trim().toUpperCase(),
+      name: manualStudent.name.trim(),
+      department: manualStudent.department || 'Computer Science',
+      section: manualStudent.section || selectedSection,
+      isManual: true
+    };
+    setStudents(prev => [newStudent, ...prev]);
+    setAttendanceMap(prev => ({ ...prev, [newStudent.id]: manualStudent.status || 'PRESENT' }));
+    toast.success(`Student ${newStudent.enrollmentNumber} added to roster manually!`);
+    setManualStudentOpen(false);
+    setManualStudent({
+      enrollmentNumber: '',
+      name: '',
+      department: 'Computer Science',
+      section: selectedSection,
+      status: 'PRESENT'
+    });
+  };
+
+  const handleQuickManualSubmit = async () => {
+    if (!quickManual.enrollmentNumber.trim()) {
+      toast.warning('Please enter Student Roll Number');
+      return;
+    }
+    try {
+      setSaving(true);
+      // Try to find student or use manual ID
+      const matched = students.find(s => s.enrollmentNumber?.toLowerCase() === quickManual.enrollmentNumber.trim().toLowerCase());
+      const sId = matched ? matched.id : Date.now();
+      
+      const records = { [sId]: quickManual.status === 'OD' ? 'PRESENT' : quickManual.status };
+      await attendanceAPI.mark({
+        courseId: Number(selectedCourse) || 1,
+        attendanceDate: quickManual.date,
+        records: records,
+        remarks: `[MANUAL ENTRY] ${quickManual.enrollmentNumber} - ${quickManual.remarks}`
+      });
+
+      const record = {
+        courseId: selectedCourse,
+        courseCode: quickManual.courseCode || currentCourseObj?.courseCode || 'CS401',
+        date: quickManual.date,
+        slot: quickManual.slot,
+        section: selectedSection,
+        attendanceMap: { [sId]: quickManual.status },
+        timestamp: Date.now(),
+        markedBy: user?.name || 'Faculty Member (Manual)'
+      };
+      
+      const existing = JSON.parse(localStorage.getItem('campusiq_attendance_records') || '[]');
+      localStorage.setItem('campusiq_attendance_records', JSON.stringify([record, ...existing]));
+      broadcastDataChange(DATA_SYNC_EVENTS.ATTENDANCE_UPDATED, record);
+
+      toast.success(`✅ Attendance manually recorded for ${quickManual.enrollmentNumber}!`);
+      setQuickManualOpen(false);
+      setQuickManual({
+        enrollmentNumber: '',
+        courseCode: '',
+        date: new Date().toISOString().split('T')[0],
+        slot: '09:00 AM - 10:00 AM (Period 1)',
+        status: 'PRESENT',
+        remarks: 'Manual entry by faculty'
+      });
+    } catch (e) {
+      toast.error('Failed to submit manual attendance: ' + (e.response?.data?.message || e.message));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Load initial courses and student roster
   useEffect(() => {
     courseAPI.getAll()
@@ -70,20 +173,9 @@ export default function AttendancePage() {
     userAPI.getStudents()
       .then(res => {
         const sList = res.data?.data || [];
-        // Default mock if list is short
-        const roster = sList.length > 0 ? sList : [
-          { id: '1', name: 'Aarav Patel', enrollmentNumber: '21CS001', department: 'Computer Science', section: 'Section A' },
-          { id: '2', name: 'Bhavna Sharma', enrollmentNumber: '21CS014', department: 'Computer Science', section: 'Section A' },
-          { id: '3', name: 'Chirag Rao', enrollmentNumber: '21CS028', department: 'Computer Science', section: 'Section A' },
-          { id: '4', name: 'Divya Reddy', enrollmentNumber: '21CS035', department: 'Computer Science', section: 'Section A' },
-          { id: '5', name: 'Rahul Reddy K.', enrollmentNumber: '21CS045', department: 'Computer Science', section: 'Section A' },
-          { id: '6', name: 'Rhea Sen', enrollmentNumber: '21CS046', department: 'Computer Science', section: 'Section A' },
-          { id: '7', name: 'Rohan Gupta', enrollmentNumber: '21CS047', department: 'Computer Science', section: 'Section A' },
-          { id: '8', name: 'Sanya Mirza M.', enrollmentNumber: '21CS078', department: 'Computer Science', section: 'Section A' },
-        ];
-        setStudents(roster);
+        setStudents(sList);
         const initialMap = {};
-        roster.forEach(s => { initialMap[s.id] = 'PRESENT'; });
+        sList.forEach(s => { initialMap[s.id] = 'PRESENT'; });
         setAttendanceMap(initialMap);
       })
       .catch(() => {});
@@ -101,9 +193,32 @@ export default function AttendancePage() {
   };
 
   const handleSaveDailyAttendance = async () => {
+    if (!selectedCourse) {
+      toast.warning('Please select a course first');
+      return;
+    }
+    if (students.length === 0) {
+      toast.warning('No registered students found to mark attendance');
+      return;
+    }
+
     setSaving(true);
     try {
-      // Persist to sync storage
+      // 1. Build and save records to backend MySQL database
+      const records = {};
+      students.forEach(s => {
+        const status = attendanceMap[s.id] || 'PRESENT';
+        records[s.id] = (status === 'OD' ? 'PRESENT' : status);
+      });
+
+      await attendanceAPI.mark({
+        courseId: Number(selectedCourse),
+        attendanceDate: selectedDate,
+        records: records,
+        remarks: `${selectedSlot} - ${selectedSection}`
+      });
+
+      // 2. Persist to sync storage
       const record = {
         courseId: selectedCourse,
         courseCode: currentCourseObj?.courseCode || 'CS401',
@@ -118,13 +233,13 @@ export default function AttendancePage() {
       const existing = JSON.parse(localStorage.getItem('campusiq_attendance_records') || '[]');
       localStorage.setItem('campusiq_attendance_records', JSON.stringify([record, ...existing]));
 
-      // Broadcast event to instantly update Student and Admin portals
+      // 3. Broadcast event to instantly update Student and Admin portals
       broadcastDataChange(DATA_SYNC_EVENTS.ATTENDANCE_UPDATED, record);
 
-      await new Promise(r => setTimeout(r, 400));
-      toast.success(`Daily attendance locked and synced to Student & Admin portals (${students.length} students in ${selectedSection})!`);
+      toast.success(`✅ Daily attendance saved to MySQL database & synced across all roles (${students.length} students in ${selectedSection})!`);
     } catch (e) {
-      toast.error('Failed to submit attendance');
+      console.error(e);
+      toast.error('Failed to submit attendance to database: ' + (e.response?.data?.message || e.message));
     } finally {
       setSaving(false);
     }
@@ -306,7 +421,13 @@ export default function AttendancePage() {
                 <Typography variant="subtitle1" fontWeight={700}>
                   Student Roll Number Roster — {selectedSection}
                 </Typography>
-                <Stack direction="row" spacing={1}>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  <Button size="small" variant="contained" color="primary" onClick={() => setManualStudentOpen(true)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
+                    ➕ Add Student Manually
+                  </Button>
+                  <Button size="small" variant="outlined" color="secondary" onClick={() => setQuickManualOpen(true)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
+                    ⚡ Single Entry
+                  </Button>
                   <Button size="small" variant="outlined" color="success" onClick={() => handleMarkAll('PRESENT')}>
                     Mark All Present
                   </Button>
@@ -810,6 +931,128 @@ export default function AttendancePage() {
           </Card>
         </Box>
       )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* DIALOG: ADD WALK-IN STUDENT MANUALLY TO ROSTER                */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <Dialog open={manualStudentOpen} onClose={() => setManualStudentOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, color: COLORS.primary }}>
+          ➕ Add Student Manually to Roster
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '10px !important' }}>
+          <TextField
+            label="Roll Number / Enrollment ID *"
+            size="small"
+            placeholder="e.g. 24CS003"
+            value={manualStudent.enrollmentNumber}
+            onChange={e => setManualStudent(prev => ({ ...prev, enrollmentNumber: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Student Full Name *"
+            size="small"
+            placeholder="e.g. Ramesh Reddy"
+            value={manualStudent.name}
+            onChange={e => setManualStudent(prev => ({ ...prev, name: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Department"
+            size="small"
+            value={manualStudent.department}
+            onChange={e => setManualStudent(prev => ({ ...prev, department: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Section"
+            size="small"
+            value={manualStudent.section}
+            onChange={e => setManualStudent(prev => ({ ...prev, section: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            select
+            label="Attendance Status"
+            size="small"
+            value={manualStudent.status}
+            onChange={e => setManualStudent(prev => ({ ...prev, status: e.target.value }))}
+            fullWidth
+          >
+            <MenuItem value="PRESENT">Present</MenuItem>
+            <MenuItem value="ABSENT">Absent</MenuItem>
+            <MenuItem value="LATE">Late Arrival</MenuItem>
+            <MenuItem value="OD">On Duty (OD)</MenuItem>
+          </TextField>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setManualStudentOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddManualStudent} sx={{ bgcolor: COLORS.secondary }}>
+            Add to Roster
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* DIALOG: QUICK SINGLE MANUAL ENTRY                             */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <Dialog open={quickManualOpen} onClose={() => setQuickManualOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, color: COLORS.primary }}>
+          ⚡ Enter Single Attendance Record Manually
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '10px !important' }}>
+          <TextField
+            label="Student Roll Number / Enrollment ID *"
+            size="small"
+            placeholder="e.g. 24CS001"
+            value={quickManual.enrollmentNumber}
+            onChange={e => setQuickManual(prev => ({ ...prev, enrollmentNumber: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Attendance Date"
+            size="small"
+            type="date"
+            value={quickManual.date}
+            onChange={e => setQuickManual(prev => ({ ...prev, date: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <TextField
+            label="Time Slot / Period"
+            size="small"
+            value={quickManual.slot}
+            onChange={e => setQuickManual(prev => ({ ...prev, slot: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            select
+            label="Attendance Status *"
+            size="small"
+            value={quickManual.status}
+            onChange={e => setQuickManual(prev => ({ ...prev, status: e.target.value }))}
+            fullWidth
+          >
+            <MenuItem value="PRESENT">Present</MenuItem>
+            <MenuItem value="ABSENT">Absent</MenuItem>
+            <MenuItem value="LATE">Late Arrival</MenuItem>
+            <MenuItem value="OD">On Duty (OD)</MenuItem>
+          </TextField>
+          <TextField
+            label="Remarks / Verification"
+            size="small"
+            placeholder="e.g. Approved via medical slip or physical register"
+            value={quickManual.remarks}
+            onChange={e => setQuickManual(prev => ({ ...prev, remarks: e.target.value }))}
+            fullWidth
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setQuickManualOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleQuickManualSubmit} disabled={saving} sx={{ bgcolor: COLORS.secondary }}>
+            {saving ? 'Submitting...' : 'Save Manual Record'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

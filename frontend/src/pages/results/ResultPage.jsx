@@ -4,7 +4,7 @@ import {
   CircularProgress, LinearProgress, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem,
-  IconButton, Tooltip, Alert, Divider
+  IconButton, Tooltip, Alert, Divider, Grid, Paper
 } from '@mui/material';
 import { Publish, Refresh, Close, BarChart, School } from '@mui/icons-material';
 import { Bar } from 'react-chartjs-2';
@@ -18,6 +18,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import { COLORS, getPerfColor, getPerfBg } from '../../theme/theme';
 import { anim, shimmerBg } from '../../theme/animations';
 import { toast } from 'react-toastify';
+import { broadcastDataChange, updateSharedStudentCgpa, subscribeToDataSync, DATA_SYNC_EVENTS } from '../../services/dataSync';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, CTooltip, Legend);
 
@@ -46,56 +47,190 @@ const gradeClr = (g) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 function PublishDialog({ open, onClose, onDone, type }) {
   const isSem   = type === 'SEM';
+  const [courses,   setCourses] = useState([]);
+  const [selectedCourseId, setSelectedCourseId] = useState('');
   const [exams,    setExams]   = useState([]);
   const [students, setStudents]= useState([]);
+  const [academicRecordsMap, setAcademicRecordsMap] = useState({});
   const [examId,   setExamId]  = useState('');
-  const [marks,    setMarks]   = useState({});   // { [studentId]: string }
   const [remarks,  setRemarks] = useState('');
   const [loading,  setLoading] = useState(false);
   const [saving,   setSaving]  = useState(false);
 
-  // Load exams + students when dialog opens
+  // For Mid marks breakdown: { [studentId]: { desc: 27, ob: 16, assgn: 5, obj: 18 } }
+  const [breakdowns, setBreakdowns] = useState({});
+  // For Sem marks: { [studentId]: semMarks }
+  const [semMarks,   setSemMarks]   = useState({});
+
+  // Load courses + exams + students when dialog opens
   useEffect(() => {
     if (!open) return;
-    setExamId(''); setMarks({}); setRemarks('');
+    setExamId(''); setSelectedCourseId(''); setBreakdowns({}); setSemMarks({}); setRemarks('');
     setLoading(true);
-    Promise.all([api.get('/exams'), api.get('/users/students')])
-      .then(([er, sr]) => {
-        setExams(er.data?.data || []);
-        setStudents(sr.data?.data || []);
+    Promise.all([
+      api.get('/exams'),
+      api.get('/users/students'),
+      api.get('/courses').catch(() => ({ data: { data: [] } }))
+    ])
+      .then(([er, sr, cr]) => {
+        const crs = cr.data?.data || [];
+        setCourses(crs);
+
+        const allExams = er.data?.data || [];
+        const filtered = allExams.filter(e => {
+          const t = (e.examType || '').toUpperCase();
+          if (isSem) return t.includes('SEM') || t.includes('FINAL') || t.includes('SEMESTER');
+          return t.includes('MID') || t.includes('INTERNAL');
+        });
+        setExams(filtered.length > 0 ? filtered : allExams);
+        const stds = sr.data?.data || [];
+        setStudents(stds);
+
+        if (!isSem) {
+          const initB = {};
+          stds.forEach(s => {
+            initB[s.id] = { desc: 27, ob: 16, assgn: 5, obj: 18 };
+          });
+          setBreakdowns(initB);
+        } else {
+          const initS = {};
+          stds.forEach(s => {
+            initS[s.id] = 58;
+          });
+          setSemMarks(initS);
+        }
+
+        if (crs.length > 0) {
+          const firstC = crs[0];
+          setSelectedCourseId(String(firstC.id));
+          const matchEx = filtered.find(e => String(e.course?.id) === String(firstC.id) || e.course?.courseCode === firstC.courseCode);
+          if (matchEx) setExamId(String(matchEx.id));
+        }
       })
-      .catch(() => toast.error('Could not load exams/students'))
+      .catch(() => toast.error('Could not load exams/students/courses'))
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, isSem]);
 
   const selExam = exams.find(e => String(e.id) === String(examId));
+  const selCourse = courses.find(c => String(c.id) === String(selectedCourseId))
+    || selExam?.course
+    || (examId ? exams.find(e => String(e.id) === String(examId))?.course : null);
+
+  const handleCourseChange = (cId) => {
+    setSelectedCourseId(cId);
+    if (!cId) { setExamId(''); return; }
+    const courseObj = courses.find(c => String(c.id) === String(cId));
+    const matched = exams.find(e => {
+      const matchCourse = String(e.course?.id) === String(cId) || e.course?.courseCode === courseObj?.courseCode;
+      return matchCourse;
+    });
+    if (matched) {
+      setExamId(String(matched.id));
+    }
+  };
+
+  const handleExamChange = (newExamId) => {
+    setExamId(newExamId);
+    const chosen = exams.find(e => String(e.id) === String(newExamId));
+    if (chosen?.course?.id) {
+      setSelectedCourseId(String(chosen.course.id));
+    }
+  };
+
+  // Load student academic records for the selected course
+  useEffect(() => {
+    if (!students || students.length === 0) return;
+    const targetCode = selCourse?.courseCode || selExam?.course?.courseCode;
+    students.forEach(s => {
+      api.get(`/academic-records/student/${s.id}`)
+        .then(res => {
+          const semRecords = res.data?.data?.semesterRecords || {};
+          let foundSubject = null;
+          for (const key of Object.keys(semRecords)) {
+            const list = semRecords[key] || [];
+            const match = targetCode ? list.find(r => r.subjectCode === targetCode) : list[0];
+            if (match) { foundSubject = match; break; }
+          }
+          if (foundSubject) {
+            setAcademicRecordsMap(prev => ({ ...prev, [s.id]: foundSubject }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [selExam, selectedCourseId, selCourse, students]);
+
+  // Compute 30-mark mid total: (desc/3) + (ob/4) + assgn + (obj/2)
+  const calcMidTotal = (b) => {
+    if (!b) return 0;
+    const d = Math.max(0, Math.min(30, Number(b.desc) || 0));
+    const o = Math.max(0, Math.min(20, Number(b.ob) || 0));
+    const a = Math.max(0, Math.min(5,  Number(b.assgn) || 0));
+    const j = Math.max(0, Math.min(20, Number(b.obj) || 0));
+    return Number(((d / 3.0) + (o / 4.0) + a + (j / 2.0)).toFixed(2));
+  };
 
   const handlePublish = async () => {
     if (!examId) { toast.warning('Select an exam first'); return; }
+
     const studentMarks = {};
+    const studentBreakdowns = {};
     let count = 0;
-    for (const s of students) {
-      const raw = marks[s.id];
-      if (raw === undefined || raw === '') continue;
-      const num = parseFloat(raw);
-      if (isNaN(num) || num < 0) { toast.warning(`Invalid marks for ${s.name}`); return; }
-      if (selExam && num > selExam.totalMarks) {
-        toast.warning(`${s.name}: marks (${num}) exceed max (${selExam.totalMarks})`); return;
+
+    if (isSem) {
+      for (const s of students) {
+        const raw = semMarks[s.id];
+        if (raw === undefined || raw === '') continue;
+        const num = parseFloat(raw);
+        if (isNaN(num) || num < 0 || num > 70) {
+          toast.warning(`${s.name}: Semester exam marks must be between 0 and 70`);
+          return;
+        }
+        studentMarks[s.id] = num;
+        count++;
       }
-      studentMarks[s.id] = num;
-      count++;
+    } else {
+      for (const s of students) {
+        const b = breakdowns[s.id];
+        if (!b) continue;
+        const tot = calcMidTotal(b);
+        studentMarks[s.id] = tot;
+        studentBreakdowns[s.id] = {
+          descriptive: Number(b.desc) || 0,
+          openBook:    Number(b.ob) || 0,
+          assignment:  Number(b.assgn) || 0,
+          objective:   Number(b.obj) || 0,
+        };
+        count++;
+      }
     }
+
     if (count === 0) { toast.warning('Enter marks for at least one student'); return; }
 
     setSaving(true);
     try {
       const endpoint = isSem ? '/results/publish/sem' : '/results/publish/mid';
-      await api.post(endpoint, {
-        examId:       Number(examId),
-        studentMarks: studentMarks,
-        remarks:      remarks.trim() || null,
-      });
-      toast.success(`✅ ${isSem ? 'Semester' : 'Mid-semester'} results published for ${count} student(s)!`);
+      const payload = {
+        examId: Number(examId),
+        studentMarks,
+        remarks: remarks.trim() || null,
+      };
+      if (!isSem) {
+        payload.studentBreakdowns = studentBreakdowns;
+      }
+
+      const res = await api.post(endpoint, payload);
+      const publishedList = res.data?.data || [];
+      if (Array.isArray(publishedList)) {
+        publishedList.forEach(r => {
+          const sId = r.student?.id || r.studentId;
+          if (sId) {
+            const gpa = r.gradePoints != null ? parseFloat(r.gradePoints) : (r.marksObtained ? parseFloat(r.marksObtained) / 10 : 8.5);
+            updateSharedStudentCgpa(sId, gpa, selExam?.semester || 4, remarks);
+          }
+        });
+      }
+      broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, { examId, isSem, count, results: publishedList });
+      toast.success(`✅ ${isSem ? 'Semester (Admin)' : 'Mid-semester (Faculty)'} results published for ${count} student(s)! Automatically synced to all portals.`);
       onDone();
       onClose();
     } catch (err) {
@@ -107,8 +242,8 @@ function PublishDialog({ open, onClose, onDone, type }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
-      PaperProps={{ sx: { borderRadius: 3, maxHeight: '90vh' } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, maxHeight: '92vh' } }}>
 
       {/* Title */}
       <DialogTitle sx={{
@@ -116,126 +251,299 @@ function PublishDialog({ open, onClose, onDone, type }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         borderBottom: '1px solid #f1f5f9', pb: 1.5,
       }}>
-        {isSem ? '📖 Publish Semester Results (Admin)' : '📝 Publish Mid-Semester Results'}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {isSem ? '📖 Publish Semester Results — Admin Authority (70 Sem / 30 Mid = 100)' : '📝 Publish Mid-Semester Results — Faculty Authority (Max 30)'}
+        </Box>
         <IconButton onClick={onClose} size="small"><Close fontSize="small" /></IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 2 }}>
-        {isSem && (
+        {isSem ? (
           <Alert severity="warning" sx={{ mb: 2, borderRadius: 2, fontSize: 13 }}>
-            ⚠️ Semester results are <strong>Admin only</strong> — these are final end-term marks saved permanently to student records.
+            ⚠️ <strong>Admin Authority Only:</strong> Enter Semester End Exam marks (Max 70, pass threshold 24). Overall pass threshold is 40 (Sem + Mid ≥ 40), requiring at least 16 in Mid if Sem is 24, otherwise higher in Sem.
+          </Alert>
+        ) : (
+          <Alert severity="info" sx={{ mb: 2, borderRadius: 2, fontSize: 13 }}>
+            📝 <strong>Faculty Authority Only:</strong> Enter Continuous Assessment breakdown: Descriptive (Max 30 &rarr; /3 = 10), Open Book (Max 20 &rarr; /4 = 5), Assignment (Max 5 = 5), Objective (Max 20 &rarr; /2 = 10) &rarr; Overall Mid 30 marks. Automatically synchronizes for Student and Admin.
           </Alert>
         )}
-        <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2, fontSize: 13 }}>
-          📧 Students receive an <strong>email notification</strong> automatically when you publish.
-        </Alert>
 
         {loading ? (
           <Box sx={{ textAlign: 'center', py: 5 }}><CircularProgress /></Box>
         ) : (
           <>
-            {/* Exam selector */}
-            <TextField
-              select fullWidth size="small" label="Select Exam *"
-              value={examId} onChange={e => setExamId(e.target.value)} sx={{ mb: 2.5 }}>
-              <MenuItem value="">— Choose exam —</MenuItem>
-              {exams.map(e => (
-                <MenuItem key={e.id} value={String(e.id)}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', justifyContent: 'space-between' }}>
-                    <span><strong>{e.examName}</strong> — {e.course?.courseName}</span>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <Chip label={e.examType || 'EXAM'} size="small" sx={{ fontSize: 10, height: 18 }} />
-                      <Chip label={`Max: ${e.totalMarks}`} size="small"
-                        sx={{ fontSize: 10, height: 18, bgcolor: '#f1f5f9' }} />
-                    </Box>
-                  </Box>
-                </MenuItem>
-              ))}
-            </TextField>
+            {/* Subject and Exam Selectors */}
+            <Grid container spacing={2} sx={{ mb: 1.5 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select fullWidth size="small" label="Select Subject / Course *"
+                  value={selectedCourseId} onChange={e => handleCourseChange(e.target.value)}>
+                  <MenuItem value="">— Choose Subject / Course —</MenuItem>
+                  {courses.map(c => (
+                    <MenuItem key={c.id} value={String(c.id)}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span><strong>{c.courseCode}</strong> — {c.courseName}</span>
+                        <Chip label={`${c.creditHours} Cr`} size="small" sx={{ height: 18, fontSize: 10 }} />
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select fullWidth size="small" label="Select Target Exam *"
+                  value={examId} onChange={e => handleExamChange(e.target.value)}>
+                  <MenuItem value="">— Choose exam —</MenuItem>
+                  {exams
+                    .filter(e => !selectedCourseId || String(e.course?.id) === String(selectedCourseId) || e.course?.courseCode === selCourse?.courseCode)
+                    .map(e => (
+                      <MenuItem key={e.id} value={String(e.id)}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', justifyContent: 'space-between' }}>
+                          <span><strong>{e.examName}</strong></span>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Chip label={e.examType || 'EXAM'} size="small" sx={{ fontSize: 10, height: 18 }} />
+                            <Chip label={`Max: ${isSem ? 70 : 30}`} size="small"
+                              sx={{ fontSize: 10, height: 18, bgcolor: '#f1f5f9' }} />
+                          </Box>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                </TextField>
+              </Grid>
+            </Grid>
+
+            {/* Quick Subject Selectors */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexWrap: 'wrap', mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                Curriculum Subjects:
+              </Typography>
+              {courses.map(c => {
+                const isSelected = String(c.id) === String(selectedCourseId) || c.courseCode === selCourse?.courseCode;
+                return (
+                  <Chip
+                    key={c.id}
+                    label={`${c.courseCode}`}
+                    size="small"
+                    variant={isSelected ? 'filled' : 'outlined'}
+                    color={isSelected ? 'primary' : 'default'}
+                    onClick={() => handleCourseChange(String(c.id))}
+                    sx={{ cursor: 'pointer', fontWeight: isSelected ? 800 : 500 }}
+                  />
+                );
+              })}
+            </Box>
+
+            {/* Selected Subject Banner */}
+            {selCourse && (
+              <Paper sx={{ p: 1.5, mb: 2, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant="body2" fontWeight={800} color="#0f172a">
+                    📚 Subject: {selCourse.courseCode} — {selCourse.courseName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Department: {selCourse.department || 'Computer Science'} • Credits: {selCourse.creditHours} • Criteria: {isSem ? '70 Sem External + 30 Mid Internal (80/20 Rule) = 100 Total' : 'Continuous Mid Assessment (Max 30)'}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={isSem ? 'Admin Authority (70)' : 'Faculty Authority (30)'}
+                  size="small"
+                  color={isSem ? 'primary' : 'success'}
+                  sx={{ fontWeight: 700 }}
+                />
+              </Paper>
+            )}
 
             {/* Marks table */}
             {examId && (
               <>
-                <Typography variant="subtitle2" fontWeight={700} mb={1} color="text.secondary">
-                  Max marks: <strong style={{ color: '#1e293b' }}>{selExam?.totalMarks || 100}</strong>
-                  &nbsp;|&nbsp; Pass at: <strong style={{ color: '#059669' }}>{selExam?.passingMarks || 40}</strong>
-                </Typography>
-                <TableContainer sx={{ maxHeight: 350, border: '1px solid #e2e8f0', borderRadius: 2, mb: 2 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc', width: 40 }}>#</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Student Name</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc' }}>Enrollment</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc', width: 130 }}>
-                          Marks / {selExam?.totalMarks || 100}
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc', width: 70 }}>Grade</TableCell>
-                        <TableCell sx={{ fontWeight: 700, bgcolor: '#f8fafc', width: 80 }}>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {students.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} sx={{ textAlign: 'center', py: 3, color: '#94a3b8' }}>
-                            No students found
-                          </TableCell>
+                {!isSem ? (
+                  /* Faculty Mid Marks breakdown table */
+                  <TableContainer sx={{ maxHeight: 380, border: '1px solid #e2e8f0', borderRadius: 2, mb: 2 }}>
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 700, fontSize: 12 } }}>
+                          <TableCell sx={{ width: 40 }}>#</TableCell>
+                          <TableCell>Student</TableCell>
+                          <TableCell sx={{ width: 120 }}>Descriptive (30/3)</TableCell>
+                          <TableCell sx={{ width: 120 }}>Open Book (20/4)</TableCell>
+                          <TableCell sx={{ width: 110 }}>Assignment (5)</TableCell>
+                          <TableCell sx={{ width: 120 }}>Objective (20/2)</TableCell>
+                          <TableCell sx={{ width: 110 }}>Mid Total (/30)</TableCell>
+                          <TableCell sx={{ width: 90 }}>Status</TableCell>
                         </TableRow>
-                      ) : students.map((s, i) => {
-                        const raw  = marks[s.id];
-                        const num  = (raw !== undefined && raw !== '') ? parseFloat(raw) : null;
-                        const tot  = selExam?.totalMarks || 100;
-                        const pss  = selExam?.passingMarks || 40;
-                        const pct  = (num !== null && !isNaN(num)) ? (num / tot) * 100 : null;
-                        const gr   = pct !== null ? calcGrade(pct) : null;
-                        const pass = num !== null && num >= pss;
-                        const err  = num !== null && (num < 0 || num > tot);
-                        return (
-                          <TableRow key={s.id} hover>
-                            <TableCell sx={{ color: '#94a3b8', fontSize: 12 }}>{i + 1}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>{s.name}</Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="caption" fontFamily="monospace" color="text.secondary">
-                                {s.enrollmentNumber || '—'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <TextField
-                                size="small" type="number" placeholder="—"
-                                value={marks[s.id] ?? ''}
-                                error={err}
-                                onChange={e => setMarks(prev => ({ ...prev, [s.id]: e.target.value }))}
-                                inputProps={{ min: 0, max: tot, step: 0.5 }}
-                                sx={{ width: 110, '& input': { py: 0.5, px: 1, fontSize: 13 } }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {gr ? (
-                                <Chip label={gr} size="small"
-                                  sx={{ bgcolor: gradeClr(gr) + '22', color: gradeClr(gr),
-                                        fontWeight: 800, fontSize: 12, minWidth: 36 }} />
-                              ) : '—'}
-                            </TableCell>
-                            <TableCell>
-                              {pct !== null ? (
+                      </TableHead>
+                      <TableBody>
+                        {students.map((s, i) => {
+                          const b = breakdowns[s.id] || { desc: 0, ob: 0, assgn: 0, obj: 0 };
+                          const tot = calcMidTotal(b);
+                          return (
+                            <TableRow key={s.id} hover>
+                              <TableCell sx={{ color: '#94a3b8', fontSize: 12 }}>{i + 1}</TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600}>{s.name}</Typography>
+                                <Typography variant="caption" color="text.secondary" fontFamily="monospace">
+                                  {s.enrollmentNumber || '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <TextField size="small" type="number"
+                                  value={b.desc}
+                                  onChange={e => {
+                                    const v = Math.max(0, Math.min(30, parseFloat(e.target.value) || 0));
+                                    setBreakdowns(prev => ({ ...prev, [s.id]: { ...b, desc: v } }));
+                                  }}
+                                  inputProps={{ min: 0, max: 30, step: 0.5 }}
+                                  helperText={`= ${(b.desc / 3).toFixed(1)} / 10`}
+                                  sx={{ width: 100, '& input': { py: 0.5, px: 1, fontSize: 13 } }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField size="small" type="number"
+                                  value={b.ob}
+                                  onChange={e => {
+                                    const v = Math.max(0, Math.min(20, parseFloat(e.target.value) || 0));
+                                    setBreakdowns(prev => ({ ...prev, [s.id]: { ...b, ob: v } }));
+                                  }}
+                                  inputProps={{ min: 0, max: 20, step: 0.5 }}
+                                  helperText={`= ${(b.ob / 4).toFixed(1)} / 5`}
+                                  sx={{ width: 100, '& input': { py: 0.5, px: 1, fontSize: 13 } }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField size="small" type="number"
+                                  value={b.assgn}
+                                  onChange={e => {
+                                    const v = Math.max(0, Math.min(5, parseFloat(e.target.value) || 0));
+                                    setBreakdowns(prev => ({ ...prev, [s.id]: { ...b, assgn: v } }));
+                                  }}
+                                  inputProps={{ min: 0, max: 5, step: 0.5 }}
+                                  helperText="Max: 5"
+                                  sx={{ width: 90, '& input': { py: 0.5, px: 1, fontSize: 13 } }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField size="small" type="number"
+                                  value={b.obj}
+                                  onChange={e => {
+                                    const v = Math.max(0, Math.min(20, parseFloat(e.target.value) || 0));
+                                    setBreakdowns(prev => ({ ...prev, [s.id]: { ...b, obj: v } }));
+                                  }}
+                                  inputProps={{ min: 0, max: 20, step: 0.5 }}
+                                  helperText={`= ${(b.obj / 2).toFixed(1)} / 10`}
+                                  sx={{ width: 100, '& input': { py: 0.5, px: 1, fontSize: 13 } }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography fontWeight={800} color="primary.main">
+                                  {tot} <Typography component="span" variant="caption" color="text.secondary">/ 30</Typography>
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
                                 <Chip
-                                  label={pass ? '✅ Pass' : '❌ Fail'} size="small"
+                                  label="Recorded" size="small"
+                                  sx={{
+                                    bgcolor: '#e0f2fe',
+                                    color:   '#0369a1',
+                                    fontSize: 10, fontWeight: 700,
+                                  }}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  /* Admin Sem Marks table (70 sem + 30 mid = 100 total) */
+                  <TableContainer sx={{ maxHeight: 380, border: '1px solid #e2e8f0', borderRadius: 2, mb: 2 }}>
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 700, fontSize: 12 } }}>
+                          <TableCell sx={{ width: 40 }}>#</TableCell>
+                          <TableCell>Student</TableCell>
+                          <TableCell sx={{ width: 140 }}>Sem Exam (/70)<br /><span style={{ fontSize: 10, color: '#64748b' }}>Pass: 24</span></TableCell>
+                          <TableCell sx={{ width: 120 }}>Mid Marks (/30)</TableCell>
+                          <TableCell sx={{ width: 120 }}>Total Marks (/100)<br /><span style={{ fontSize: 10, color: '#64748b' }}>Pass: 40</span></TableCell>
+                          <TableCell sx={{ width: 80 }}>Grade</TableCell>
+                          <TableCell sx={{ width: 90 }}>Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {students.map((s, i) => {
+                          const rec = academicRecordsMap[s.id];
+                          let mid = 25.0;
+                          if (rec) {
+                            const m1 = rec.mid1TotalMarks != null ? parseFloat(rec.mid1TotalMarks) : null;
+                            const m2 = rec.mid2TotalMarks != null ? parseFloat(rec.mid2TotalMarks) : null;
+                            if (m1 != null && m2 != null) {
+                              mid = Math.min(30, Math.round(((0.80 * Math.max(m1, m2)) + (0.20 * Math.min(m1, m2))) * 100) / 100);
+                            } else if (rec.convertedInternalMarks != null) {
+                              mid = parseFloat(rec.convertedInternalMarks);
+                            } else if (rec.midMarks != null) {
+                              mid = parseFloat(rec.midMarks);
+                            } else if (m1 != null) {
+                              mid = m1;
+                            }
+                          }
+                          const raw = semMarks[s.id];
+                          const sem = (raw !== undefined && raw !== '') ? parseFloat(raw) : 0;
+                          const total = Number((sem + mid).toFixed(2));
+                          const pass = sem >= 24 && total >= 40;
+                          const pct = total;
+                          const gr = pass ? calcGrade(pct) : 'F';
+                          return (
+                            <TableRow key={s.id} hover>
+                              <TableCell sx={{ color: '#94a3b8', fontSize: 12 }}>{i + 1}</TableCell>
+                              <TableCell>
+                                <Typography variant="body2" fontWeight={600}>{s.name}</Typography>
+                                <Typography variant="caption" color="text.secondary" fontFamily="monospace">
+                                  {s.enrollmentNumber || '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <TextField size="small" type="number"
+                                  value={semMarks[s.id] ?? ''}
+                                  onChange={e => {
+                                    const v = Math.max(0, Math.min(70, parseFloat(e.target.value) || 0));
+                                    setSemMarks(prev => ({ ...prev, [s.id]: v }));
+                                  }}
+                                  inputProps={{ min: 0, max: 70, step: 0.5 }}
+                                  helperText="Pass: >= 24/70"
+                                  sx={{ width: 120, '& input': { py: 0.5, px: 1, fontSize: 13 } }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography fontWeight={600} color="secondary.main">
+                                  {mid} <Typography component="span" variant="caption" color="text.secondary">/ 30</Typography>
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography fontWeight={800} color={pass ? '#059669' : '#dc2626'}>
+                                  {total} <Typography component="span" variant="caption" color="text.secondary">/ 100</Typography>
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip label={gr} size="small"
+                                  sx={{ bgcolor: gradeClr(gr) + '22', color: gradeClr(gr), fontWeight: 800, fontSize: 12 }} />
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={pass ? 'Passed' : 'Failed'} size="small"
                                   sx={{
                                     bgcolor: pass ? '#dcfce7' : '#fee2e2',
                                     color:   pass ? '#15803d' : '#dc2626',
                                     fontSize: 10, fontWeight: 700,
                                   }}
                                 />
-                              ) : '—'}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
               </>
             )}
 
@@ -244,7 +552,7 @@ function PublishDialog({ open, onClose, onDone, type }) {
               fullWidth multiline rows={2} size="small"
               label="Remarks (optional)" value={remarks}
               onChange={e => setRemarks(e.target.value)}
-              placeholder="e.g. Mid-term marks entered. Re-test for failures on 20th March." />
+              placeholder="e.g. Official evaluation verified and released." />
           </>
         )}
       </DialogContent>
@@ -259,7 +567,7 @@ function PublishDialog({ open, onClose, onDone, type }) {
             bgcolor:   isSem ? COLORS.primary    : COLORS.secondary,
             '&:hover': { bgcolor: isSem ? '#0d1657' : '#1e3a8a' },
           }}>
-          {saving ? 'Publishing…' : 'Publish & Notify'}
+          {saving ? 'Publishing…' : (isSem ? 'Publish Sem Results (Admin)' : 'Publish Mid Results (Faculty)')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -330,7 +638,7 @@ export default function ResultPage() {
         breadcrumbs={['Home', 'Results']}
         action={
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            {isStaff && (
+            {isFaculty && (
               <Button variant="contained" startIcon={<Publish />}
                 onClick={() => setMidOpen(true)}
                 sx={{ borderRadius: 2, fontSize: 12, bgcolor: COLORS.secondary }}>
@@ -406,7 +714,7 @@ export default function ResultPage() {
                 ? 'No semester results yet.'
                 : 'No results published yet.'}
             </Typography>
-            {isStaff && tab !== 2 && (
+            {isFaculty && tab !== 2 && (
               <Button variant="outlined" startIcon={<Publish />} onClick={() => setMidOpen(true)}>
                 Publish Mid Results Now
               </Button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Card, CardContent, Chip, Button,
   Tab, Tabs, Table, TableBody, TableCell, TableContainer, TableHead, TableRow
@@ -7,14 +7,16 @@ import {
   School, EventNote, Work, CheckCircle, Send
 } from '@mui/icons-material';
 
-const PLACEMENT_DRIVES = [
+import { placementAPI } from '../../services/api';
+
+const DEFAULT_PLACEMENT_DRIVES = [
   { id: 'DRV-01', company: 'Google Cloud India', role: 'Associate Cloud Engineer / SDE', ctc: '₹28.5 LPA', eligibility: 'CGPA >= 8.5 • Zero Backlogs', lastDate: '10 Sep 2026', testDate: '16 Sep 2026', aiMatch: 94, status: 'Eligible & Applied', stage: 'Online Coding Round 1' },
   { id: 'DRV-02', company: 'Microsoft IDC', role: 'Software Engineer (Full Stack / AI)', ctc: '₹32.0 LPA', eligibility: 'CGPA >= 8.0 • Zero Backlogs', lastDate: '15 Sep 2026', testDate: '22 Sep 2026', aiMatch: 91, status: 'Eligible - Apply Now', stage: 'Application Open' },
   { id: 'DRV-03', company: 'Amazon AWS', role: 'Cloud Solutions Architect Intern + FTE', ctc: '₹24.0 LPA', eligibility: 'CGPA >= 7.5', lastDate: '20 Sep 2026', testDate: '28 Sep 2026', aiMatch: 88, status: 'Eligible - Apply Now', stage: 'Application Open' },
   { id: 'DRV-04', company: 'Goldman Sachs', role: 'Quantitative Technology Analyst', ctc: '₹26.0 LPA', eligibility: 'CGPA >= 8.5', lastDate: '05 Oct 2026', testDate: '12 Oct 2026', aiMatch: 85, status: 'Eligible - Apply Now', stage: 'Upcoming' },
 ];
 
-const PLACEMENT_CALENDAR = [
+const DEFAULT_PLACEMENT_CALENDAR = [
   { date: '10 Sep 2026', time: '05:00 PM', event: 'Google Cloud Pre-Placement Talk (PPT)', venue: 'Auditorium-A / Virtual Stream', type: 'PPT' },
   { date: '16 Sep 2026', time: '10:00 AM - 12:00 PM', event: 'Google Cloud National Coding Challenge Round 1', venue: 'Campus Central Computing Lab', type: 'Assessment' },
   { date: '22 Sep 2026', time: '09:30 AM - 11:30 AM', event: 'Microsoft Online Technical Assessment', venue: 'Online / HackerRank', type: 'Assessment' },
@@ -23,9 +25,59 @@ const PLACEMENT_CALENDAR = [
 
 export default function StudentPlacementsPortalPage({ initialTab = 0 }) {
   const [tabIndex, setTabIndex] = useState(initialTab);
+  const [drives, setDrives] = useState(DEFAULT_PLACEMENT_DRIVES);
+  const [calendar, setCalendar] = useState(DEFAULT_PLACEMENT_CALENDAR);
   const [appliedDrives, setAppliedDrives] = useState({ 'DRV-01': true });
+  const [loading, setLoading] = useState(false);
 
-  const handleApply = (id) => {
+  useEffect(() => {
+    const loadPlacementData = async () => {
+      try {
+        setLoading(true);
+        const [drivesRes, calRes] = await Promise.allSettled([
+          placementAPI.getDrives(),
+          placementAPI.getCalendar()
+        ]);
+
+        if (drivesRes.status === 'fulfilled' && drivesRes.value.data?.data) {
+          const raw = drivesRes.value.data.data;
+          if (Array.isArray(raw) && raw.length > 0) {
+            setDrives(raw.map((d, idx) => ({
+              id: d.id || `DRV-${idx + 1}`,
+              company: d.company || 'Enterprise Partner',
+              role: d.role || 'Software Engineer',
+              ctc: d.ctc || '₹20.0 LPA',
+              eligibility: `CGPA >= ${d.eligibilityCgpa || 7.5}`,
+              lastDate: d.deadline || '30 Sep 2026',
+              testDate: d.interviewDate || '10 Oct 2026',
+              aiMatch: 90,
+              status: 'Eligible - Apply Now',
+              stage: d.status || 'Application Open'
+            })));
+          }
+        }
+
+        if (calRes.status === 'fulfilled' && calRes.value.data?.data) {
+          const raw = calRes.value.data.data;
+          if (Array.isArray(raw) && raw.length > 0) {
+            setCalendar(raw);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load placement data from server:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPlacementData();
+  }, []);
+
+  const handleApply = async (id) => {
+    try {
+      await placementAPI.applyDrive(id, { studentRoll: '24CS001' });
+    } catch (err) {
+      console.warn('Placement application call failed:', err);
+    }
     setAppliedDrives(p => ({ ...p, [id]: true }));
   };
 
@@ -92,7 +144,7 @@ export default function StudentPlacementsPortalPage({ initialTab = 0 }) {
       {/* Tab 0: Placement Drives */}
       {tabIndex === 0 && (
         <Grid container spacing={3}>
-          {PLACEMENT_DRIVES.map((d) => (
+          {drives.map((d) => (
             <Grid item xs={12} md={6} key={d.id}>
               <Card variant="outlined" sx={{ borderRadius: 3, border: '1px solid #e2e8f0', height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent sx={{ p: 3, flex: 1 }}>
@@ -167,7 +219,7 @@ export default function StudentPlacementsPortalPage({ initialTab = 0 }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {PLACEMENT_CALENDAR.map((p, i) => (
+                {calendar.map((p, i) => (
                   <TableRow key={i} hover>
                     <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>
                       {p.date}

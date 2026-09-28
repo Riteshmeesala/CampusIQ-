@@ -36,6 +36,12 @@ public class AttendanceController {
         return ResponseEntity.ok(ApiResponse.success(records, "Marked " + records.size() + " records"));
     }
 
+    @GetMapping({"", "/all"})
+    @PreAuthorize("hasAnyRole('ADMIN','FACULTY')")
+    public ResponseEntity<ApiResponse<List<Attendance>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.success(attendanceService.getAllAttendance()));
+    }
+
     @GetMapping("/my")
     public ResponseEntity<ApiResponse<List<Attendance>>> myAttendance(@AuthenticationPrincipal UserPrincipal me) {
         if (me == null || me.getId() == null) {

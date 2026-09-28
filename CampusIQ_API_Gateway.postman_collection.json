@@ -1,0 +1,349 @@
+{
+  "info": {
+    "name": "CampusIQ+ Microservices (via API Gateway)",
+    "_postman_id": "c7a8b9f0-1234-4567-89ab-cdef01234567",
+    "description": "Complete Postman collection to test all microservice endpoints routed through Spring Cloud API Gateway (Port 8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "campusiq_jwt_token_admin",
+      "type": "string"
+    },
+    {
+      "key": "facultyToken",
+      "value": "campusiq_jwt_token_faculty",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "campusiq_jwt_token_student",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Gateway & Actuator",
+      "item": [
+        {
+          "name": "Gateway Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actuator/health",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Gateway Dynamic Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/actuator/gateway/routes",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["actuator", "gateway", "routes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Auth Service (:8081)",
+      "item": [
+        {
+          "name": "Auth - Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin@campusiq.edu.in\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/auth/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Users - Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/stats",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Users - List Students",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/students",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "students"]
+            }
+          }
+        },
+        {
+          "name": "Users - List Faculty",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/faculty",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "faculty"]
+            }
+          }
+        },
+        {
+          "name": "Registrations - Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/registrations/stats",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "registrations", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Academic Service (:8082)",
+      "item": [
+        {
+          "name": "Courses - All Courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/courses",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "courses"]
+            }
+          }
+        },
+        {
+          "name": "Attendance - My Attendance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/attendance/my",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "attendance", "my"]
+            }
+          }
+        },
+        {
+          "name": "Timetable - My Schedule",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/timetable/my",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "timetable", "my"]
+            }
+          }
+        },
+        {
+          "name": "Faculty Subject Assignments - All",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/faculty-assignments/all",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "faculty-assignments", "all"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Assessment Service (:8083)",
+      "item": [
+        {
+          "name": "Exams - All Exams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/exams",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "exams"]
+            }
+          }
+        },
+        {
+          "name": "Exams - Upcoming",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/exams/upcoming",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "exams", "upcoming"]
+            }
+          }
+        },
+        {
+          "name": "Results - My Results",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/results/my",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "results", "my"]
+            }
+          }
+        },
+        {
+          "name": "CGPA - All Published",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/cgpa/all",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "cgpa", "all"]
+            }
+          }
+        },
+        {
+          "name": "Academic Records - My Semester Records",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/academic-records/my",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "academic-records", "my"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Finance Service (:8084)",
+      "item": [
+        {
+          "name": "Fees - My Fees",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/fees/my",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "fees", "my"]
+            }
+          }
+        },
+        {
+          "name": "Fees - Pending Amount",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/fees/my/pending-amount",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "fees", "my", "pending-amount"]
+            }
+          }
+        },
+        {
+          "name": "Fees - All (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/fees/all",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "fees", "all"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Campus AI Service (:8085)",
+      "item": [
+        {
+          "name": "AI - Adaptive Study Plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ai/study-plan",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "ai", "study-plan"]
+            }
+          }
+        },
+        {
+          "name": "AI - Performance Insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/ai/performance-insights",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "ai", "performance-insights"]
+            }
+          }
+        },
+        {
+          "name": "Chatbot - Chat Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"What is my schedule for today?\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/chatbot/chat",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "chatbot", "chat"]
+            }
+          }
+        },
+        {
+          "name": "Notifications - All",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{studentToken}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/notifications",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

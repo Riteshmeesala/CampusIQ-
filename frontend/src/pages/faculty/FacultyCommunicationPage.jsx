@@ -15,6 +15,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
 import { broadcastDataChange, DATA_SYNC_EVENTS } from '../../services/dataSync';
+import { notificationAPI } from '../../services/api';
 
 export default function FacultyCommunicationPage() {
   const location = useLocation();
@@ -69,6 +70,14 @@ export default function FacultyCommunicationPage() {
     setCirculars(updated);
     localStorage.setItem('campusiq_circulars_data', JSON.stringify(updated));
     broadcastDataChange(DATA_SYNC_EVENTS.EVENT_PUBLISHED, { circular: newEntry, allCirculars: updated });
+    
+    // Broadcast to backend notification table
+    notificationAPI.broadcast({
+      subject: form.title,
+      message: form.content || `${form.title} - ${form.target}`,
+      targetRole: 'ALL'
+    }).catch(err => console.warn('Backend notification broadcast error:', err));
+
     toast.success(`Official Notice "${form.title}" published to student and faculty portals!`);
     setOpen(false);
     setForm({ title: '', target: 'All B.Tech Students & Faculty', category: 'EXAMINATION', priority: 'HIGH', author: 'Prof. S. K. Sharma (HOD)', content: '' });

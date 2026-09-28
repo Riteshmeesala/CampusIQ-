@@ -31,6 +31,16 @@ public class DigitalLibraryController {
         invoices.add(Map.of("invNo", "LIB-INV-2026-081", "date", "2026-08-10", "item", "Book Overdue Fine Clearance", "amount", "₹50.00", "status", "Paid"));
     }
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLibraryOverview() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("totalBooks", books.size());
+        data.put("borrowedCount", borrowed.size());
+        data.put("books", books);
+        data.put("status", "ACTIVE");
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
     @GetMapping("/books")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchBooks(@RequestParam(required = false) String query) {
         if (query == null || query.isBlank()) {

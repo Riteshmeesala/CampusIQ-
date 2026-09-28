@@ -10,6 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { courseAPI, userAPI } from '../../services/api';
+import { broadcastDataChange, subscribeToDataSync, DATA_SYNC_EVENTS } from '../../services/dataSync';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import StatCard from '../../components/shared/StatCard';
@@ -59,6 +60,16 @@ export default function FacultyCoursesPage() {
 
   useEffect(() => {
     loadCourses();
+    window.addEventListener('focus', loadCourses);
+    const unsub = subscribeToDataSync((event) => {
+      if (event.type === DATA_SYNC_EVENTS.COURSE_UPDATED || event.type === 'CAMPUSIQ_DATA_MUTATED') {
+        loadCourses();
+      }
+    });
+    return () => {
+      window.removeEventListener('focus', loadCourses);
+      unsub();
+    };
   }, []);
 
   const handleOpenAdd = () => {
@@ -102,6 +113,7 @@ export default function FacultyCoursesPage() {
         await courseAPI.create(form);
         setSuccess(`Course ${form.courseCode} added successfully!`);
       }
+      broadcastDataChange(DATA_SYNC_EVENTS.COURSE_UPDATED, { form });
       setOpenDialog(false);
       await loadCourses();
     } catch (e) {
@@ -117,6 +129,7 @@ export default function FacultyCoursesPage() {
     }
     try {
       await courseAPI.delete(course.id);
+      broadcastDataChange(DATA_SYNC_EVENTS.COURSE_UPDATED, { deletedId: course.id });
       setSuccess(`Course ${course.courseCode} removed`);
       await loadCourses();
     } catch (e) {

@@ -201,6 +201,7 @@ public class User {
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
     public boolean isActive() { return active; }
+    public boolean getActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public boolean isTwoFactorEnabled() { return twoFactorEnabled; }
     public void setTwoFactorEnabled(boolean twoFactorEnabled) { this.twoFactorEnabled = twoFactorEnabled; }

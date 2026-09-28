@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, Button, Chip,
   Stack, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -11,7 +11,8 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
-import { broadcastDataChange, DATA_SYNC_EVENTS } from '../../services/dataSync';
+import { eventAPI } from '../../services/api';
+import { broadcastDataChange, DATA_SYNC_EVENTS, subscribeToDataSync } from '../../services/dataSync';
 
 export default function DepartmentEventsPage() {
   const [events, setEvents] = useState(() => {
@@ -24,15 +25,40 @@ export default function DepartmentEventsPage() {
     ];
   });
 
+  const loadServerEvents = async () => {
+    try {
+      const res = await eventAPI.getAll();
+      const serverData = res.data?.data || res.data || [];
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        setEvents(serverData);
+      }
+    } catch (err) {
+      console.warn('Failed to load events from server:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadServerEvents();
+    const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.EVENT_PUBLISHED, () => loadServerEvents());
+    return () => unsub();
+  }, []);
+
   const [open, setOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [form, setForm] = useState({ title: '', type: 'Hands-on Workshop', date: '', time: '', venue: '', speaker: '', regs: 60, status: 'UPCOMING' });
   const [regModalOpen, setRegModalOpen] = useState(false);
   const [selectedEv, setSelectedEv] = useState(null);
 
-  const saveEvents = (list) => {
+  const saveEvents = async (list, newlyCreated = null) => {
     setEvents(list);
     localStorage.setItem('dept_events_data', JSON.stringify(list));
+    if (newlyCreated) {
+      try {
+        await eventAPI.publish(newlyCreated);
+      } catch (err) {
+        console.warn('Failed to publish event to server:', err);
+      }
+    }
     broadcastDataChange(DATA_SYNC_EVENTS.EVENT_PUBLISHED, { events: list, timestamp: Date.now() });
   };
 
@@ -61,7 +87,7 @@ export default function DepartmentEventsPage() {
       updated = [{ ...form, id: Date.now() }, ...events];
       toast.success(`Event "${form.title}" scheduled and broadcast to students.`);
     }
-    saveEvents(updated);
+    saveEvents(updated, editingEvent ? null : form);
     setOpen(false);
   };
 

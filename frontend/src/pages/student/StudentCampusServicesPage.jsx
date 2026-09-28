@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Card, CardContent, Chip, Button,
   Tab, Tabs, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -8,6 +8,7 @@ import {
   Hotel, DirectionsBus, Inventory2, Campaign, LocationOn,
   Download, QrCode2, Restaurant, Person
 } from '@mui/icons-material';
+import { campusServicesAPI } from '../../services/api';
 
 const HOSTEL_INFO = {
   block: 'Block-C (Aryabhatta Boys Hostel)',
@@ -62,6 +63,63 @@ export default function StudentCampusServicesPage({ initialTab = 0 }) {
   const [tabIndex, setTabIndex] = useState(initialTab);
   const [outpassModal, setOutpassModal] = useState(false);
   const [outpassSubmitted, setOutpassSubmitted] = useState(false);
+  const [hostel, setHostel] = useState(HOSTEL_INFO);
+  const [bus, setBus] = useState(BUS_INFO);
+  const [yearbook, setYearbook] = useState(YEARBOOK_MEMORIES);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        setLoading(true);
+        const [hostelRes, busRes, ybRes] = await Promise.allSettled([
+          campusServicesAPI.getHostelDetails(),
+          campusServicesAPI.getBusRoutes(),
+          campusServicesAPI.getYearbook()
+        ]);
+
+        if (hostelRes.status === 'fulfilled' && hostelRes.value.data?.data) {
+          const h = hostelRes.value.data.data;
+          setHostel(prev => ({
+            ...prev,
+            roomNo: h.allocatedRoom || prev.roomNo,
+            block: h.block || prev.block,
+            wardenName: h.warden || prev.wardenName,
+          }));
+        }
+
+        if (busRes.status === 'fulfilled' && busRes.value.data?.data) {
+          const routes = busRes.value.data.data;
+          if (Array.isArray(routes) && routes.length > 0) {
+            const r = routes[0];
+            setBus(prev => ({
+              ...prev,
+              routeNo: `${r.routeNo} - ${r.name}`,
+              busNumber: r.busNo || prev.busNumber,
+              driverName: r.driver || prev.driverName,
+              status: `${r.status} (Speed: ${r.speed || '35 km/h'} • Next: ${r.nextStop || 'Campus'})`
+            }));
+          }
+        }
+
+        if (ybRes.status === 'fulfilled' && ybRes.value.data?.data) {
+          const entries = ybRes.value.data.data;
+          if (Array.isArray(entries) && entries.length > 0) {
+            setYearbook(entries.map(e => ({
+              batch: e.batch || 'Batch of 2027',
+              title: e.title,
+              count: e.quote || 'Campus Memories'
+            })));
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load campus services from backend:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadServices();
+  }, []);
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#f8fafc', minHeight: '100vh' }}>
@@ -120,28 +178,28 @@ export default function StudentCampusServicesPage({ initialTab = 0 }) {
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>HOSTEL BLOCK & ROOM</Typography>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e40af' }}>
-                    {HOSTEL_INFO.block} • {HOSTEL_INFO.roomNo}
+                    {hostel.block} • {hostel.roomNo}
                   </Typography>
                 </Box>
 
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>ACCOMMODATION TYPE</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155' }}>
-                    {HOSTEL_INFO.type}
+                    {hostel.type}
                   </Typography>
                 </Box>
 
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>ROOMMATE</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Person sx={{ fontSize: 16, color: '#2563eb' }} /> {HOSTEL_INFO.roommate}
+                    <Person sx={{ fontSize: 16, color: '#2563eb' }} /> {hostel.roommate}
                   </Typography>
                 </Box>
 
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>WARDEN IN-CHARGE</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155' }}>
-                    {HOSTEL_INFO.wardenName} ({HOSTEL_INFO.wardenPhone})
+                    {hostel.wardenName} ({hostel.wardenPhone})
                   </Typography>
                 </Box>
               </Box>
@@ -216,25 +274,25 @@ export default function StudentCampusServicesPage({ initialTab = 0 }) {
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>ROUTE NAME</Typography>
                   <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#1e40af' }}>
-                    {BUS_INFO.routeNo}
+                    {bus.routeNo}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>BUS REGISTRATION NO</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                    {BUS_INFO.busNumber}
+                    {bus.busNumber}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>DRIVER DETAILS</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155' }}>
-                    {BUS_INFO.driverName} ({BUS_INFO.driverPhone})
+                    {bus.driverName} ({bus.driverPhone})
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>YOUR PICKUP POINT</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                    {BUS_INFO.pickupPoint} @ {BUS_INFO.pickupTime}
+                    {bus.pickupPoint} @ {bus.pickupTime}
                   </Typography>
                 </Box>
               </Box>
@@ -244,7 +302,7 @@ export default function StudentCampusServicesPage({ initialTab = 0 }) {
                   GPS LIVE TRACKER STATUS
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#166534', fontWeight: 700, mt: 0.5 }}>
-                  {BUS_INFO.status}
+                  {bus.status}
                 </Typography>
               </Box>
             </Paper>
@@ -348,7 +406,7 @@ export default function StudentCampusServicesPage({ initialTab = 0 }) {
           </Box>
 
           <Grid container spacing={3}>
-            {YEARBOOK_MEMORIES.map((m, idx) => (
+            {yearbook.map((m, idx) => (
               <Grid item xs={12} md={4} key={idx}>
                 <Card variant="outlined" sx={{ borderRadius: 3, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                   <Box sx={{ height: 160, bgcolor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

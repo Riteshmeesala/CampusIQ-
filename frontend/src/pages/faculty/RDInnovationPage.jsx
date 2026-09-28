@@ -17,10 +17,34 @@ export default function RDInnovationPage() {
   const [tab, setTab] = useState(0);
   const [open, setOpen] = useState(false);
   const [pubForm, setPubForm] = useState({ title: '', venue: '', type: 'IEEE Transactions', doi: '', year: '2024' });
+  const [publications, setPublications] = useState(() => {
+    const saved = localStorage.getItem('campusiq_rd_publications');
+    return saved ? JSON.parse(saved) : [
+      { title: 'Scalable Federated Learning Architectures for Resource-Constrained Edge Clusters', venue: 'IEEE Transactions on Cloud Computing (Vol. 12)', ind: 'SCI / Scopus', yr: '2023', doi: '10.1109/TCC.2023.10982', cit: 48 },
+      { title: 'Autonomous Multi-Agent Task Orchestration in Smart Educational Campuses', venue: 'ACM International Conference on AI & Education (AI-ED 2024)', ind: 'Scopus Indexed', yr: '2024', doi: '10.1145/36109.36211', cit: 16 },
+      { title: 'Deep Neural Pruning for Real-time Edge Vision Analytics', venue: 'Springer Journal of Supercomputing (Vol. 78)', ind: 'SCIE / Scopus', yr: '2022', doi: '10.1007/s11227-022-04561-x', cit: 64 },
+    ];
+  });
 
   const handleAddPub = () => {
+    if (!pubForm.title.trim()) {
+      toast.warning('Title is required');
+      return;
+    }
+    const newPub = {
+      title: pubForm.title,
+      venue: pubForm.venue || 'International Journal of Engineering & Tech',
+      ind: 'Scopus Indexed',
+      yr: pubForm.year || '2024',
+      doi: pubForm.doi || '10.1109/CAMPUS.2024.01',
+      cit: 0
+    };
+    const updated = [newPub, ...publications];
+    setPublications(updated);
+    localStorage.setItem('campusiq_rd_publications', JSON.stringify(updated));
     toast.success('Research publication logged in institutional R&D repository.');
     setOpen(false);
+    setPubForm({ title: '', venue: '', type: 'IEEE Transactions', doi: '', year: '2024' });
   };
 
   return (
@@ -82,11 +106,7 @@ export default function RDInnovationPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {[
-                    { title: 'Scalable Federated Learning Architectures for Resource-Constrained Edge Clusters', venue: 'IEEE Transactions on Cloud Computing (Vol. 12)', ind: 'SCI / Scopus', yr: '2023', doi: '10.1109/TCC.2023.10982', cit: 48 },
-                    { title: 'Autonomous Multi-Agent Task Orchestration in Smart Educational Campuses', venue: 'ACM International Conference on AI & Education (AI-ED 2024)', ind: 'Scopus Indexed', yr: '2024', doi: '10.1145/36109.36211', cit: 16 },
-                    { title: 'Deep Neural Pruning for Real-time Edge Vision Analytics', venue: 'Springer Journal of Supercomputing (Vol. 78)', ind: 'SCIE / Scopus', yr: '2022', doi: '10.1007/s11227-022-04561-x', cit: 64 },
-                  ].map((p, i) => (
+                  {publications.map((p, i) => (
                     <TableRow key={i} hover>
                       <TableCell sx={{ fontWeight: 700, color: '#0f172a', maxWidth: 300 }}>{p.title}</TableCell>
                       <TableCell sx={{ fontSize: 12 }}>{p.venue}</TableCell>

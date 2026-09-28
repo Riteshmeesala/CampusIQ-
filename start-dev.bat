@@ -7,6 +7,13 @@ echo.
 
 cd /d "%~dp0"
 
+if exist .env (
+    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
+        if "%%a"=="XAI_API_KEY" set "XAI_API_KEY=%%b"
+        if "%%a"=="GROK_API_KEY" set "GROK_API_KEY=%%b"
+    )
+)
+
 echo [1/8] Starting Eureka Discovery Server (Port 8761)...
 start "Eureka Server [8761]" cmd /k "cd /d %~dp0backend\eureka-server && mvn spring-boot:run"
 ping 127.0.0.1 -n 9 >nul

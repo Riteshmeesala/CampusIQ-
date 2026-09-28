@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { aiAPI } from '../../services/api';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import StructuredAIResponse from './StructuredAIResponse';
 
 export default function FloatingCampusBot() {
   const { user } = useAuth();
@@ -25,7 +26,7 @@ export default function FloatingCampusBot() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hello ${user?.name ? user.name.split(' ')[0] : 'there'}. I am CampusMate AI. How can I assist you with your academic records, schedules, or queries today?`,
+      content: `Hello ${user?.name ? user.name.split(' ')[0] : 'there'}. I am Grok AI. How can I assist you with your academic records, schedules, or queries today?`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
   ]);
@@ -165,7 +166,7 @@ export default function FloatingCampusBot() {
           zIndex: 1300,
         }}
       >
-        <Tooltip title={open ? 'Close CampusMate' : 'Ask CampusMate AI'}>
+        <Tooltip title={open ? 'Close Grok AI' : 'Ask Grok AI'}>
           <Box
             onClick={() => setOpen(!open)}
             sx={{
@@ -204,8 +205,8 @@ export default function FloatingCampusBot() {
             position: 'fixed',
             bottom: 86,
             right: 24,
-            width: { xs: 'calc(100vw - 32px)', sm: 400 },
-            height: 540,
+            width: { xs: 'calc(100vw - 32px)', sm: 460 },
+            height: 580,
             maxHeight: 'calc(100vh - 120px)',
             backgroundColor: '#ffffff',
             border: `1px solid ${COLORS.border}`,
@@ -247,7 +248,7 @@ export default function FloatingCampusBot() {
               </Box>
               <Box>
                 <Typography variant="subtitle2" fontWeight={700} sx={{ color: COLORS.textPrimary, fontSize: '0.875rem' }}>
-                  CampusMate AI
+                  Grok AI
                 </Typography>
                 <Typography variant="caption" sx={{ color: COLORS.textMuted, fontSize: '0.68rem', display: 'block' }}>
                   Intelligent Campus Assistant
@@ -326,21 +327,26 @@ export default function FloatingCampusBot() {
                     </Box>
                   ) : null}
 
-                  <Box sx={{ maxWidth: '85%' }}>
+                  <Box sx={{ maxWidth: isAssistant ? '92%' : '85%' }}>
                     <Box
                       sx={{
                         p: 1.5,
-                        borderRadius: 0.5,
+                        borderRadius: 1,
                         backgroundColor: isAssistant ? '#ffffff' : '#2563eb',
                         color: isAssistant ? COLORS.textPrimary : '#ffffff',
                         border: isAssistant ? `1px solid ${COLORS.border}` : 'none',
-                        boxShadow: isAssistant ? '0 1px 2px rgba(0,0,0,0.03)' : 'none',
-                        fontSize: '0.8125rem',
-                        lineHeight: 1.55,
-                        whiteSpace: 'pre-wrap',
+                        boxShadow: isAssistant ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+                        fontSize: '0.825rem',
+                        lineHeight: 1.6,
                       }}
                     >
-                      {m.content}
+                      {isAssistant ? (
+                        <StructuredAIResponse text={m.content} />
+                      ) : (
+                        <Typography sx={{ fontSize: '0.825rem', whiteSpace: 'pre-wrap' }}>
+                          {m.content}
+                        </Typography>
+                      )}
                     </Box>
                     <Box
                       sx={{

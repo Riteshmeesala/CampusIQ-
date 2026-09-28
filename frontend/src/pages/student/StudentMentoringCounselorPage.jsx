@@ -8,6 +8,7 @@ import {
   AssignmentInd, EventAvailable, Email, Phone,
   AccessTime, LocationOn
 } from '@mui/icons-material';
+import { mentoringAPI } from '../../services/api';
 import {
   getSharedCounseling, bookSharedCounseling, subscribeToDataSync
 } from '../../services/dataSync';
@@ -25,24 +26,43 @@ const MENTOR_DETAILS = {
 
 export default function StudentMentoringCounselorPage() {
   const [sessionsList, setSessionsList] = useState(getSharedCounseling());
+  const [loading, setLoading] = useState(false);
   const [openBookModal, setOpenBookModal] = useState(false);
   const [preferredDate, setPreferredDate] = useState('');
   const [agenda, setAgenda] = useState('');
   const [booked, setBooked] = useState(false);
 
-  useEffect(() => {
-    const unsub = subscribeToDataSync(() => {
+  const loadSessions = async () => {
+    try {
+      setLoading(true);
+      const res = await mentoringAPI.getMyMentoring();
+      const serverSessions = res.data?.data || res.data || [];
+      if (Array.isArray(serverSessions) && serverSessions.length > 0) {
+        setSessionsList(serverSessions);
+      } else {
+        setSessionsList(getSharedCounseling());
+      }
+    } catch (err) {
+      console.warn('Failed to load mentoring sessions from server:', err);
       setSessionsList(getSharedCounseling());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSessions();
+    const unsub = subscribeToDataSync(() => {
+      loadSessions();
     });
     return unsub;
   }, []);
 
-  const handleBookSession = () => {
+  const handleBookSession = async () => {
     if (!agenda || !preferredDate) return;
     const newSession = {
-      id: `CSL-2026-${Math.floor(100 + Math.random() * 900)}`,
       studentName: 'Ritesh Meesala',
-      rollNo: '23CS042',
+      rollNo: '24CS001',
       mentorName: MENTOR_DETAILS.name,
       date: preferredDate.replace('T', ' '),
       type: agenda,
@@ -51,9 +71,19 @@ export default function StudentMentoringCounselorPage() {
       rating: 5,
       status: 'Pending Review'
     };
-    const updated = bookSharedCounseling(newSession);
-    setSessionsList(updated);
-    setBooked(true);
+
+    try {
+      const res = await mentoringAPI.bookSession(newSession);
+      const created = res.data?.data || res.data || newSession;
+      bookSharedCounseling(created);
+      await loadSessions();
+      setBooked(true);
+    } catch (err) {
+      console.error('Error booking mentoring session on server:', err);
+      bookSharedCounseling(newSession);
+      setSessionsList(getSharedCounseling());
+      setBooked(true);
+    }
   };
 
   return (

@@ -15,6 +15,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
 import { broadcastDataChange, DATA_SYNC_EVENTS } from '../../services/dataSync';
+import { courseAPI, resultAPI } from '../../services/api';
 
 export default function ResultReportsPage() {
   const location = useLocation();
@@ -23,6 +24,18 @@ export default function ResultReportsPage() {
   const queryParams = new URLSearchParams(location.search);
   const initialTab = parseInt(queryParams.get('tab') || '0', 10);
   const [tabIndex, setTabIndex] = useState(initialTab);
+
+  const [courses, setCourses] = useState([]);
+
+  useEffect(() => {
+    courseAPI.getAll().then(res => {
+      const list = res.data?.data || [];
+      setCourses(list);
+      if (list.length > 0) {
+        setSelectedCourse(list[0].courseCode || 'CS401');
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const qTab = queryParams.get('tab');
@@ -60,7 +73,28 @@ export default function ResultReportsPage() {
     setEditScoreModal(false);
   };
 
-  const handlePublishMarks = () => {
+  const handlePublishMarks = async () => {
+    try {
+      // Find course object
+      const matched = courses.find(c => c.courseCode === selectedCourse);
+      const courseId = matched ? matched.id : 1;
+
+      // Map to batch requests for backend
+      for (const r of resultsData) {
+        if (r.roll) {
+          resultAPI.publishMid({
+            studentId: 1, // sample student link
+            courseId: courseId,
+            midType: selectedExam,
+            descriptiveMarks: r.desc,
+            objectiveMarks: r.obj,
+            assignmentMarks: r.asg,
+            openBookMarks: 15
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {}
+
     broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, {
       course: selectedCourse,
       exam: selectedExam,

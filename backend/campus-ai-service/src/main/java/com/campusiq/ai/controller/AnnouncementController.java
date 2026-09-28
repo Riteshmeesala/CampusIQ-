@@ -7,12 +7,15 @@ import com.campusiq.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
+import com.campusiq.ai.entity.Notification;
 
 @RestController
 @RequestMapping("/announcements")
@@ -22,6 +25,11 @@ public class AnnouncementController {
 
     public AnnouncementController(AnnouncementService announcementService) {
         this.announcementService = announcementService;
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Notification>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.success(announcementService.getAllAnnouncements()));
     }
 
     @PostMapping("/send")

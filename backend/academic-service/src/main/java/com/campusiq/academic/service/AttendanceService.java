@@ -90,4 +90,8 @@ public class AttendanceService {
     public List<Attendance> getCourseAttendanceByDate(Long courseId, LocalDate date) {
         return attendanceRepository.findByCourseIdAndAttendanceDate(courseId, date);
     }
+
+    public List<Attendance> getAllAttendance() {
+        return attendanceRepository.findAll();
+    }
 }

@@ -109,7 +109,7 @@ function RoleHome() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register/student" element={<PublicStudentRegistrationPage />} />
@@ -174,9 +174,9 @@ export default function App() {
             <Route path="/student/notices"
               element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><StudentNoticesPage /></ProtectedRoute>} />
             <Route path="/student/fee-dues"
-              element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><StudentFeeDuesPage /></ProtectedRoute>} />
+              element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><FeePage /></ProtectedRoute>} />
             <Route path="/student/fees"
-              element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><StudentFeeDuesPage /></ProtectedRoute>} />
+              element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><FeePage /></ProtectedRoute>} />
             <Route path="/student/assignments"
               element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><StudentAssignmentsPortal /></ProtectedRoute>} />
             <Route path="/student/project-details"

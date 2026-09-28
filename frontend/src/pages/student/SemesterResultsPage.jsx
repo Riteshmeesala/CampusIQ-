@@ -35,7 +35,14 @@ export default function SemesterResultsPage() {
     setLoading(true);
     academicRecordAPI.getMyRecords()
       .then(r => {
-        setProfile(r.data.data || {});
+        const data = r.data.data || {};
+        setProfile(data);
+        const semRecords = data.semesterRecords || {};
+        setActiveSem(prev => {
+          if (semRecords[prev] && semRecords[prev].length > 0) return prev;
+          const found = Object.keys(semRecords).reverse().find(k => semRecords[k]?.length > 0);
+          return found || prev;
+        });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -45,7 +52,7 @@ export default function SemesterResultsPage() {
     loadData();
     window.addEventListener('focus', loadData);
     const unsubscribe = subscribeToDataSync((event) => {
-      if (event.type === DATA_SYNC_EVENTS.RESULT_PUBLISHED) {
+      if (event.type === DATA_SYNC_EVENTS.RESULT_PUBLISHED || event.type === 'CAMPUSIQ_DATA_MUTATED') {
         loadData();
       }
     });
@@ -72,7 +79,7 @@ export default function SemesterResultsPage() {
     <Box sx={{ pb: 6 }}>
       <PageHeader
         title="Semester-Wise Academic Results & History"
-        subtitle="Continuous Assessment (Mid-1 & Mid-2), Internal Evaluation (25), Semester Exam (70), Grades (S/A/B/C/D/E/F), SGPA & CGPA"
+        subtitle="Continuous Assessment (Mid 30 Marks: Descriptive 30/3, Open Book 20/4, Assignment 5, Objective 20/2), Semester Exam (70), Grades (S/A/B/C/D/E/F), SGPA & CGPA"
         breadcrumbs={['Home', 'Student', 'Academic Results']}
       />
 
@@ -252,7 +259,7 @@ export default function SemesterResultsPage() {
                 Semester {activeSem} Course Evaluation Breakdown
               </Typography>
               <Typography sx={{ fontSize: '0.75rem', color: COLORS.textSecond }}>
-                Continuous Assessment (80% Best Mid + 20% Other Mid → 25 Marks), Semester Exam (70), Final Total (100), Grades (S/A/B/C/D/E/F)
+                Continuous Evaluation: 2 Mids (30 Max each: Desc 30/3, Open Book 20/4, Assign 5, Obj 20/2) • <strong>80/20 Rule: 80% Best Mid + 20% Other Mid</strong> • Sem Exam (70 Max) • Total (100 Max)
               </Typography>
             </Box>
             <Chip
@@ -270,9 +277,9 @@ export default function SemesterResultsPage() {
                   <TableCell sx={{ minWidth: 180 }}>Course Title</TableCell>
                   <TableCell sx={{ minWidth: 120 }}>Faculty</TableCell>
                   <TableCell sx={{ width: 50 }} align="center">Credits</TableCell>
-                  <TableCell sx={{ minWidth: 75 }} align="center">Mid-1 (/25)</TableCell>
-                  <TableCell sx={{ minWidth: 75 }} align="center">Mid-2 (/25)</TableCell>
-                  <TableCell sx={{ minWidth: 80 }} align="center">Internal (/25)</TableCell>
+                  <TableCell sx={{ minWidth: 75 }} align="center">Mid-1 (/30)</TableCell>
+                  <TableCell sx={{ minWidth: 75 }} align="center">Mid-2 (/30)</TableCell>
+                  <TableCell sx={{ minWidth: 85 }} align="center">Internal 80/20 (/30)</TableCell>
                   <TableCell sx={{ minWidth: 80 }} align="center">Sem Exam (/70)</TableCell>
                   <TableCell sx={{ minWidth: 80 }} align="center">Total (/100)</TableCell>
                   <TableCell sx={{ minWidth: 65 }} align="center">Grade</TableCell>
@@ -298,26 +305,27 @@ export default function SemesterResultsPage() {
                         {sub.creditHours || 3}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.8125rem', fontWeight: 700, color: COLORS.primary }} align="center">
-                        {sub.mid1TotalMarks ?? sub.midMarks ?? 22}
+                        {sub.mid1TotalMarks != null ? Number(sub.mid1TotalMarks).toFixed(1) : (sub.midMarks != null ? Number(sub.midMarks).toFixed(1) : '—')}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.8125rem', fontWeight: 700, color: COLORS.primary }} align="center">
-                        {sub.mid2TotalMarks ?? 23.5}
+                        {sub.mid2TotalMarks != null ? Number(sub.mid2TotalMarks).toFixed(1) : '—'}
                       </TableCell>
-                      <TableCell sx={{ fontSize: '0.8125rem', fontWeight: 700, color: COLORS.secondary }} align="center">
-                        {sub.convertedInternalMarks ?? 22.75}
+                      <TableCell sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#15803d' }} align="center">
+                        {sub.convertedInternalMarks != null ? Number(sub.convertedInternalMarks).toFixed(2) : (sub.internalMarks != null ? Number(sub.internalMarks).toFixed(2) : '—')}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.8125rem', fontWeight: 600 }} align="center">
-                        {sub.semesterMarks ?? 65}
+                        {sub.semesterMarks != null ? Number(sub.semesterMarks).toFixed(1) : '—'}
                       </TableCell>
                       <TableCell sx={{ fontWeight: 800, fontSize: '0.85rem', color: COLORS.textPrimary }} align="center">
-                        {sub.totalMarks ?? 87.75}
+                        {sub.totalMarks != null ? Number(sub.totalMarks).toFixed(1) : '—'}
                       </TableCell>
                       <TableCell align="center">
                         <Chip
-                          label={sub.grade || 'A'}
+                          label={sub.grade || '—'}
                           size="small"
                           sx={{
                             bgcolor: gColor.bg,
+
                             color: gColor.text,
                             fontWeight: 800,
                             fontSize: '0.75rem',

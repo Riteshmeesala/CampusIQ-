@@ -5,6 +5,14 @@ Write-Host "==================================================================="
 
 $root = $PSScriptRoot
 
+if (Test-Path "$root\.env") {
+    Get-Content "$root\.env" | ForEach-Object {
+        if ($_ -match '^\s*([^#=]+)\s*=\s*(.*)$') {
+            [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim())
+        }
+    }
+}
+
 Write-Host "`n[1/8] Starting Eureka Discovery Server (Port 8761)..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\backend\eureka-server'; mvn spring-boot:run"
 Start-Sleep -Seconds 8

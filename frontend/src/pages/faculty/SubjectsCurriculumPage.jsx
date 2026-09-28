@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, Button, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, Stack, Tab, Tabs, Divider
+  Paper, Stack, Tab, Tabs, Divider, CircularProgress
 } from '@mui/material';
 import {
   MenuBook, AccountTree, CheckCircle, Download, Add,
@@ -11,9 +11,22 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { courseAPI } from '../../services/api';
 
 export default function SubjectsCurriculumPage() {
   const [tab, setTab] = useState(0);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    courseAPI.getAll()
+      .then(res => {
+        setCourses(res.data?.data || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <Box sx={{ pb: 6 }}>
@@ -43,11 +56,21 @@ export default function SubjectsCurriculumPage() {
 
       {tab === 0 && (
         <Grid container spacing={3}>
-          {[
+          {(courses.length > 0 ? courses.map((c, idx) => ({
+            code: c.courseCode || `CS40${idx + 1}`,
+            name: c.courseName,
+            credits: `${c.credits || 4}.0 Credits`,
+            cos: [
+              `CO1: Understand core principles and concepts of ${c.courseName}`,
+              `CO2: Analyze implementation strategies and algorithmic methods in ${c.courseCode || 'course'}`,
+              `CO3: Evaluate performance, efficiency and security metrics`,
+              `CO4: Design and develop real-world capstone modules`
+            ]
+          })) : [
             { code: 'CS401', name: 'Operating Systems & Architecture', credits: '4.0 Credits', cos: ['CO1: Understand OS kernel architectures and system calls', 'CO2: Analyze process scheduling & concurrency synchronization', 'CO3: Evaluate memory virtualization and paging algorithms', 'CO4: Design distributed deadlock prevention mechanisms'] },
             { code: 'CS403', name: 'Artificial Intelligence & Neural Networks', credits: '3.0 Credits', cos: ['CO1: Formulate search heuristics and game trees', 'CO2: Construct knowledge representation and Bayesian belief nets', 'CO3: Design deep feedforward and convolutional neural networks', 'CO4: Evaluate reinforcement learning agent policies'] },
             { code: 'CS405', name: 'Full Stack Web Applications Lab', credits: '2.0 Credits', cos: ['CO1: Build reactive UI components with React & Material-UI', 'CO2: Develop RESTful Spring Boot microservices', 'CO3: Implement JWT authentication and role-based access control', 'CO4: Containerize and deploy full-stack apps using Docker'] },
-          ].map((c, i) => (
+          ]).map((c, i) => (
             <Grid item xs={12} md={4} key={i}>
               <Card sx={{ border: `1px solid ${COLORS.border}`, borderRadius: 2, height: '100%' }}>
                 <CardContent sx={{ p: 3 }}>

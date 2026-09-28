@@ -1,14 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import { ErrorOutline, Refresh, CheckCircleOutline } from '@mui/icons-material';
+import { warningAPI } from '../../services/api';
 import { getSharedWarnings, DATA_SYNC_EVENTS, subscribeToDataSync } from '../../services/dataSync';
 import PageHeader from '../../components/shared/PageHeader';
 
 export default function StudentWarningsPage() {
   const [warnings, setWarnings] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const loadWarnings = () => {
-    setWarnings(getSharedWarnings());
+  const loadWarnings = async () => {
+    try {
+      setLoading(true);
+      const res = await warningAPI.getMyWarnings();
+      const serverData = res.data?.data || res.data || [];
+      if (Array.isArray(serverData) && serverData.length > 0) {
+        setWarnings(serverData);
+      } else {
+        setWarnings(getSharedWarnings());
+      }
+    } catch (err) {
+      console.warn('Failed to load warnings from server:', err);
+      setWarnings(getSharedWarnings());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcknowledge = async (id) => {
+    try {
+      await warningAPI.acknowledgeWarning(id);
+      await loadWarnings();
+    } catch (err) {
+      console.warn('Failed to acknowledge warning on server:', err);
+    }
   };
 
   useEffect(() => {

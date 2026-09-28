@@ -9,6 +9,7 @@ import {
   Description, WarningAmber, Flag, CheckCircleOutline, Add,
   UploadFile
 } from '@mui/icons-material';
+import { leaveAPI, warningAPI, grievanceAPI } from '../../services/api';
 import {
   getSharedLeaves, saveSharedLeave,
   getSharedWarnings,
@@ -29,12 +30,32 @@ export default function StudentLeavesWarningsGrievancePage({ initialTab = 0 }) {
   const [warningsList, setWarningsList] = useState(getSharedWarnings());
   const [grievancesList, setGrievancesList] = useState(getSharedGrievances());
 
+  const loadAll = async () => {
+    try {
+      const [leavesRes, warnRes, grvRes] = await Promise.allSettled([
+        leaveAPI.getMyLeaves(),
+        warningAPI.getMyWarnings(),
+        grievanceAPI.getMyGrievances()
+      ]);
+      if (leavesRes.status === 'fulfilled' && leavesRes.value.data?.data) {
+        setLeavesList(leavesRes.value.data.data);
+      }
+      if (warnRes.status === 'fulfilled' && warnRes.value.data?.data) {
+        setWarningsList(warnRes.value.data.data);
+      }
+      if (grvRes.status === 'fulfilled' && grvRes.value.data?.data) {
+        setGrievancesList(grvRes.value.data.data);
+      }
+    } catch (err) {
+      console.warn('Failed to load records from server:', err);
+    }
+  };
+
   // Listen for real-time changes from Faculty or Admin
   useEffect(() => {
+    loadAll();
     const unsub = subscribeToDataSync(() => {
-      setLeavesList(getSharedLeaves());
-      setWarningsList(getSharedWarnings());
-      setGrievancesList(getSharedGrievances());
+      loadAll();
     });
     return unsub;
   }, []);
@@ -49,41 +70,47 @@ export default function StudentLeavesWarningsGrievancePage({ initialTab = 0 }) {
   const [grvForm, setGrvForm] = useState({ category: 'Academic & Labs', subject: '', desc: '', anonymous: false });
   const [grvSubmitted, setGrvSubmitted] = useState(false);
 
-  const handleApplyLeave = () => {
+  const handleApplyLeave = async () => {
     if (!leaveForm.fromDate || !leaveForm.reason) return;
     const newRecord = {
-      id: `LV-2026-${Math.floor(100 + Math.random() * 900)}`,
       studentName: 'Ritesh Meesala',
-      rollNo: '23CS042',
+      rollNo: '24CS001',
       type: leaveForm.type,
       fromDate: leaveForm.fromDate,
       toDate: leaveForm.toDate || leaveForm.fromDate,
       days: 1,
       reason: leaveForm.reason,
-      status: 'Pending Review',
-      approvedBy: 'Assigned Faculty Mentor',
-      dateApplied: new Date().toISOString().split('T')[0]
     };
-    const updated = saveSharedLeave(newRecord);
-    setLeavesList(updated);
+    try {
+      const res = await leaveAPI.applyLeave(newRecord);
+      const created = res.data?.data || res.data || newRecord;
+      saveSharedLeave(created);
+      await loadAll();
+    } catch (err) {
+      console.warn('Failed to submit leave to server:', err);
+      saveSharedLeave(newRecord);
+    }
     setLeaveSubmitted(true);
   };
 
-  const handleApplyGrv = () => {
+  const handleApplyGrv = async () => {
     if (!grvForm.subject || !grvForm.desc) return;
     const newGrv = {
-      id: `GRV-2026-${Math.floor(100 + Math.random() * 900)}`,
       studentName: grvForm.anonymous ? 'Anonymous Student' : 'Ritesh Meesala',
-      rollNo: grvForm.anonymous ? 'Hidden' : '23CS042',
+      rollNo: grvForm.anonymous ? 'Hidden' : '24CS001',
       category: grvForm.category,
       subject: grvForm.subject,
       desc: grvForm.desc,
-      date: new Date().toISOString().split('T')[0],
-      status: 'In Review',
-      response: 'Acknowledged by Grievance Redressal Committee. Investigation assigned.'
     };
-    const updated = saveSharedGrievance(newGrv);
-    setGrievancesList(updated);
+    try {
+      const res = await grievanceAPI.submitGrievance(newGrv);
+      const created = res.data?.data || res.data || newGrv;
+      saveSharedGrievance(created);
+      await loadAll();
+    } catch (err) {
+      console.warn('Failed to submit grievance to server:', err);
+      saveSharedGrievance(newGrv);
+    }
     setGrvSubmitted(true);
   };
 

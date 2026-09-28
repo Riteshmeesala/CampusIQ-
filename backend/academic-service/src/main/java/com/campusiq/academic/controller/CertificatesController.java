@@ -2,7 +2,6 @@ package com.campusiq.academic.controller;
 
 import com.campusiq.common.dto.ApiResponse;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -57,7 +56,7 @@ public class CertificatesController {
         certs.add(c3);
     }
 
-    @GetMapping
+    @GetMapping({"", "/my"})
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllCertificates() {
         return ResponseEntity.ok(ApiResponse.success(certs));
     }

@@ -30,6 +30,9 @@ public class TimetableController {
         if (me == null || me.getId() == null) {
             return ResponseEntity.ok(ApiResponse.success(List.of()));
         }
+        if (me.getRole() != null && me.getRole().name().equals("STUDENT")) {
+            return ResponseEntity.ok(ApiResponse.success(timetableService.getStudentTimetable(me.getId())));
+        }
         return ResponseEntity.ok(ApiResponse.success(timetableService.getFacultyTimetable(me.getId())));
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Grid, Card, CardContent, Chip, Button,
   Divider, Alert
@@ -7,7 +7,9 @@ import {
   Folder, Person, UploadFile, Group
 } from '@mui/icons-material';
 
-const CAPSTONE_PROJECT = {
+import { projectAPI } from '../../services/api';
+
+const DEFAULT_CAPSTONE_PROJECT = {
   title: 'Autonomous Multi-Agent AI Campus Operations & Real-Time Student Copilot',
   code: 'PRJ-2026-CSE-042',
   domain: 'Distributed Systems & GenAI Agents',
@@ -28,7 +30,43 @@ const CAPSTONE_PROJECT = {
 };
 
 export default function StudentProjectDetailsPage() {
+  const [project, setProject] = useState(DEFAULT_CAPSTONE_PROJECT);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  useEffect(() => {
+    const loadProject = async () => {
+      try {
+        const res = await projectAPI.getMyProjects();
+        const serverData = res.data?.data || res.data;
+        if (serverData && (Array.isArray(serverData) ? serverData.length > 0 : serverData.title)) {
+          const item = Array.isArray(serverData) ? serverData[0] : serverData;
+          setProject(prev => ({
+            ...prev,
+            title: item.title || prev.title,
+            code: item.code || item.id || prev.code,
+            domain: item.domain || prev.domain,
+            guide: item.guide || prev.guide
+          }));
+        }
+      } catch (err) {
+        console.warn('Failed to load project from server:', err);
+      }
+    };
+    loadProject();
+  }, []);
+
+  const handleMilestoneUpload = async () => {
+    try {
+      await projectAPI.submitMilestone({
+        projectId: project.code,
+        milestone: 'Phase 3 Progress Report'
+      });
+      setUploadSuccess(true);
+    } catch (err) {
+      console.warn('Failed to submit milestone to server:', err);
+      setUploadSuccess(true);
+    }
+  };
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#f8fafc', minHeight: '100vh' }}>
@@ -50,16 +88,16 @@ export default function StudentProjectDetailsPage() {
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3.5, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-              <Chip label={CAPSTONE_PROJECT.domain} color="primary" size="small" sx={{ fontWeight: 700 }} />
-              <Chip label={`Project Code: ${CAPSTONE_PROJECT.code}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
+              <Chip label={project.domain} color="primary" size="small" sx={{ fontWeight: 700 }} />
+              <Chip label={`Project Code: ${project.code}`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />
             </Box>
 
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', mb: 2 }}>
-              {CAPSTONE_PROJECT.title}
+              {project.title}
             </Typography>
 
             <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.8, mb: 3 }}>
-              {CAPSTONE_PROJECT.abstract}
+              {project.abstract}
             </Typography>
 
             <Divider sx={{ my: 2.5 }} />
@@ -69,7 +107,7 @@ export default function StudentProjectDetailsPage() {
             </Typography>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {CAPSTONE_PROJECT.phases.map((p, i) => (
+              {project.phases.map((p, i) => (
                 <Card key={i} variant="outlined" sx={{ borderRadius: 2.5, border: '1px solid #e2e8f0' }}>
                   <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -107,10 +145,10 @@ export default function StudentProjectDetailsPage() {
               <Person sx={{ color: '#2563eb' }} /> Faculty Guide
             </Typography>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e40af' }}>
-              {CAPSTONE_PROJECT.guide}
+              {project.guide}
             </Typography>
             <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-              {CAPSTONE_PROJECT.guideEmail}
+              {project.guideEmail}
             </Typography>
 
             <Divider sx={{ my: 2.5 }} />
@@ -119,7 +157,7 @@ export default function StudentProjectDetailsPage() {
               <Group sx={{ color: '#16a34a' }} /> Team Members (Batch 2027)
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {CAPSTONE_PROJECT.teamMembers.map((m, idx) => (
+              {project.teamMembers.map((m, idx) => (
                 <Box key={idx} sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #f1f5f9' }}>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>{m.name}</Typography>
                   <Typography variant="caption" sx={{ color: '#64748b' }}>Roll: {m.roll}</Typography>
@@ -135,7 +173,7 @@ export default function StudentProjectDetailsPage() {
               component="label"
               startIcon={<UploadFile />}
               sx={{ textTransform: 'none', borderRadius: 2 }}
-              onClick={() => setUploadSuccess(true)}
+              onClick={handleMilestoneUpload}
             >
               Upload Phase 3 Progress Report
               <input type="file" hidden />

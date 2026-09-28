@@ -80,6 +80,11 @@ export default function FacultyTimetablePage() {
     colorCode: '#2563eb',
   });
 
+  // Manual Course Entry State
+  const [manualCourseMode, setManualCourseMode] = useState(false);
+  const [manualCourseCode, setManualCourseCode] = useState('');
+  const [manualCourseName, setManualCourseName] = useState('');
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -92,7 +97,9 @@ export default function FacultyTimetablePage() {
         setSlots(resSlots.value.data.data || []);
       }
       if (resCourses.status === 'fulfilled') {
-        setCourses(resCourses.value.data.data || []);
+        const cList = resCourses.value.data.data || [];
+        setCourses(cList);
+        if (cList.length === 0) setManualCourseMode(true);
       }
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to load timetable');
@@ -120,6 +127,9 @@ export default function FacultyTimetablePage() {
       classType: 'Lecture',
       colorCode: '#2563eb',
     });
+    setManualCourseCode('');
+    setManualCourseName('');
+    if (courses.length === 0) setManualCourseMode(true);
     setError('');
     setOpenDialog(true);
   };
@@ -142,6 +152,7 @@ export default function FacultyTimetablePage() {
       classType: slot.classType || 'Lecture',
       colorCode: slot.colorCode || '#2563eb',
     });
+    setManualCourseMode(false);
     setError('');
     setOpenDialog(true);
   };
@@ -158,18 +169,48 @@ export default function FacultyTimetablePage() {
   };
 
   const handleSave = async () => {
-    if (!form.courseId) {
-      setError('Please select a course for this class slot');
+    let targetCourseId = form.courseId;
+
+    if (manualCourseMode || !targetCourseId) {
+      if (!manualCourseCode.trim() || !manualCourseName.trim()) {
+        setError('Please enter Course Code and Subject Name manually');
+        return;
+      }
+      try {
+        setSaving(true);
+        const cRes = await courseAPI.create({
+          courseCode: manualCourseCode.trim().toUpperCase(),
+          courseName: manualCourseName.trim(),
+          credits: 4,
+          department: 'Computer Science'
+        });
+        targetCourseId = cRes.data?.data?.id;
+      } catch (err) {
+        const found = courses.find(c => c.courseCode?.toLowerCase() === manualCourseCode.trim().toLowerCase());
+        if (found) {
+          targetCourseId = found.id;
+        } else {
+          setError(err.response?.data?.message || 'Could not register manual course');
+          setSaving(false);
+          return;
+        }
+      }
+    }
+
+    if (!targetCourseId) {
+      setError('Please select or enter a course for this class slot');
       return;
     }
+
     setSaving(true);
     setError('');
     try {
+      const payload = { ...form, courseId: targetCourseId };
       if (editingSlot) {
-        await timetableAPI.update(editingSlot.id, form);
+        await timetableAPI.update(editingSlot.id, payload);
         setSuccess('Class slot updated successfully!');
       } else {
-        await timetableAPI.create(form);
+        await timetableAPI.create(payload);
         setSuccess('Class slot scheduled successfully!');
       }
       setOpenDialog(false);
@@ -719,22 +760,61 @@ export default function FacultyTimetablePage() {
           )}
 
           <Grid container spacing={2}>
-            {/* Course Selection */}
+            {/* Course Selection or Manual Entry */}
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                select
-                label="Select Subject / Course *"
-                value={form.courseId}
-                onChange={e => setForm({ ...form, courseId: e.target.value })}
-                disabled={saving}
-              >
-                {courses.map(c => (
-                  <MenuItem key={c.id} value={c.id}>
-                    <strong>{c.courseCode}</strong> — {c.courseName} ({c.creditHours || 3} Credits)
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: COLORS.textMuted }}>
+                  {manualCourseMode ? 'MANUAL SUBJECT ENTRY' : 'SELECT FROM REGISTERED COURSES'}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => setManualCourseMode(p => !p)}
+                  sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700 }}
+                >
+                  {manualCourseMode ? '← Pick from list' : '✍️ Enter Subject Manually'}
+                </Button>
+              </Box>
+
+              {manualCourseMode ? (
+                <Grid container spacing={1.5}>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Subject Code *"
+                      placeholder="e.g. CS401"
+                      value={manualCourseCode}
+                      onChange={e => setManualCourseCode(e.target.value)}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={8}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Subject Name *"
+                      placeholder="e.g. Operating Systems"
+                      value={manualCourseName}
+                      onChange={e => setManualCourseName(e.target.value)}
+                    />
+                  </Grid>
+                </Grid>
+              ) : (
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  label="Select Subject / Course *"
+                  value={form.courseId}
+                  onChange={e => setForm({ ...form, courseId: e.target.value })}
+                  disabled={saving}
+                >
+                  {courses.map(c => (
+                    <MenuItem key={c.id} value={c.id}>
+                      <strong>{c.courseCode}</strong> — {c.courseName} ({c.creditHours || 3} Credits)
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
             </Grid>
 
             {/* Day of Week */}

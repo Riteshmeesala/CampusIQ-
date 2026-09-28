@@ -70,63 +70,85 @@ public class AcademicRecordService {
      * 5. FINAL SUBJECT TOTAL = Converted Internal + Semester Exam Marks (Max 100 marks)
      */
     public static Map<String, BigDecimal> calculateTwoMidComponents(
-            BigDecimal mid1Desc, BigDecimal mid1Ob, BigDecimal mid1Obj,
-            BigDecimal mid2Desc, BigDecimal mid2Ob, BigDecimal mid2Obj,
+            BigDecimal mid1Desc, BigDecimal mid1Ob, BigDecimal mid1Obj, BigDecimal mid1Assign,
+            BigDecimal mid2Desc, BigDecimal mid2Ob, BigDecimal mid2Obj, BigDecimal mid2Assign,
             BigDecimal semesterExam) {
 
         double m1d = mid1Desc != null ? mid1Desc.doubleValue() : 27.0;
         double m1ob = mid1Ob != null ? mid1Ob.doubleValue() : 16.0;
         double m1obj = mid1Obj != null ? mid1Obj.doubleValue() : 18.0;
+        double m1as = mid1Assign != null ? mid1Assign.doubleValue() : 5.0;
 
         double m2d = mid2Desc != null ? mid2Desc.doubleValue() : (mid1Desc != null ? mid1Desc.doubleValue() : 28.5);
         double m2ob = mid2Ob != null ? mid2Ob.doubleValue() : (mid1Ob != null ? mid1Ob.doubleValue() : 18.0);
         double m2obj = mid2Obj != null ? mid2Obj.doubleValue() : (mid1Obj != null ? mid1Obj.doubleValue() : 19.0);
+        double m2as = mid2Assign != null ? mid2Assign.doubleValue() : 5.0;
 
         double sem = semesterExam != null ? semesterExam.doubleValue() : 65.0;
 
-        // Cap to institutional limits
+        // Cap to institutional limits:
+        // Descriptive: Max 30 marks -> reduced to 30 / 3 = 10
+        // Open Book: Max 20 marks -> reduced to 20 / 4 = 5
+        // Assignment: Max 5 marks -> 5
+        // Objective: Max 20 marks -> reduced to 20 / 2 = 10
+        // Overall Mid = (Descriptive/3) + (OpenBook/4) + Assignment + (Objective/2) = 30 Max
         m1d = Math.max(0.0, Math.min(30.0, m1d));
         m1ob = Math.max(0.0, Math.min(20.0, m1ob));
         m1obj = Math.max(0.0, Math.min(20.0, m1obj));
+        m1as = Math.max(0.0, Math.min(5.0, m1as));
 
         m2d = Math.max(0.0, Math.min(30.0, m2d));
         m2ob = Math.max(0.0, Math.min(20.0, m2ob));
         m2obj = Math.max(0.0, Math.min(20.0, m2obj));
+        m2as = Math.max(0.0, Math.min(5.0, m2as));
 
-        sem = Math.max(0.0, Math.min(75.0, sem));
+        sem = Math.max(0.0, Math.min(70.0, sem));
 
-        // Exact conversions for Mid 1
-        double m1Total = (m1d / 3.0) + (m1ob / 4.0) + (m1obj / 2.0);
+        // Exact conversions for Mid 1 (Max 30)
+        double m1Total = Math.min(30.0, (m1d / 3.0) + (m1ob / 4.0) + m1as + (m1obj / 2.0));
 
-        // Exact conversions for Mid 2
-        double m2Total = (m2d / 3.0) + (m2ob / 4.0) + (m2obj / 2.0);
+        // Exact conversions for Mid 2 (Max 30)
+        double m2Total = Math.min(30.0, (m2d / 3.0) + (m2ob / 4.0) + m2as + (m2obj / 2.0));
 
-        // Institutional 80/20 Rule: 80% of Highest Mid + 20% of Other Mid (Max 25)
+        // Institutional 80/20 Rule: 80% of Highest Mid + 20% of Other Mid (Max 30)
         double bestMid = Math.max(m1Total, m2Total);
         double otherMid = Math.min(m1Total, m2Total);
-        double internal = (0.80 * bestMid) + (0.20 * otherMid);
+        double internal = Math.min(30.0, (0.80 * bestMid) + (0.20 * otherMid));
 
-        // Final Total = Internal (25) + Semester Exam (70/75) -> Max 100
+        // Final Total = Mid (Max 30) + Semester Exam (Max 70) -> Max 100
         double total = Math.min(100.0, internal + sem);
 
         Map<String, BigDecimal> map = new HashMap<>();
         map.put("mid1DescriptiveMarks", BigDecimal.valueOf(m1d).setScale(2, RoundingMode.HALF_UP));
         map.put("mid1OpenBookMarks", BigDecimal.valueOf(m1ob).setScale(2, RoundingMode.HALF_UP));
         map.put("mid1ObjectiveMarks", BigDecimal.valueOf(m1obj).setScale(2, RoundingMode.HALF_UP));
+        map.put("mid1AssignmentMarks", BigDecimal.valueOf(m1as).setScale(2, RoundingMode.HALF_UP));
         map.put("mid1TotalMarks", BigDecimal.valueOf(m1Total).setScale(2, RoundingMode.HALF_UP));
 
         map.put("mid2DescriptiveMarks", BigDecimal.valueOf(m2d).setScale(2, RoundingMode.HALF_UP));
         map.put("mid2OpenBookMarks", BigDecimal.valueOf(m2ob).setScale(2, RoundingMode.HALF_UP));
         map.put("mid2ObjectiveMarks", BigDecimal.valueOf(m2obj).setScale(2, RoundingMode.HALF_UP));
+        map.put("mid2AssignmentMarks", BigDecimal.valueOf(m2as).setScale(2, RoundingMode.HALF_UP));
         map.put("mid2TotalMarks", BigDecimal.valueOf(m2Total).setScale(2, RoundingMode.HALF_UP));
 
         map.put("convertedInternalMarks", BigDecimal.valueOf(internal).setScale(2, RoundingMode.HALF_UP));
         map.put("descriptiveMarks", BigDecimal.valueOf(m1d).setScale(2, RoundingMode.HALF_UP));
         map.put("openBookMarks", BigDecimal.valueOf(m1ob).setScale(2, RoundingMode.HALF_UP));
         map.put("objectiveMarks", BigDecimal.valueOf(m1obj).setScale(2, RoundingMode.HALF_UP));
+        map.put("assignmentMarks", BigDecimal.valueOf(m1as).setScale(2, RoundingMode.HALF_UP));
+        map.put("midMarks", BigDecimal.valueOf(internal).setScale(2, RoundingMode.HALF_UP));
+        map.put("internalMarks", BigDecimal.valueOf(internal).setScale(2, RoundingMode.HALF_UP));
         map.put("semesterMarks", BigDecimal.valueOf(sem).setScale(2, RoundingMode.HALF_UP));
         map.put("totalMarks", BigDecimal.valueOf(total).setScale(2, RoundingMode.HALF_UP));
         return map;
+    }
+
+    public static Map<String, BigDecimal> calculateTwoMidComponents(
+            BigDecimal mid1Desc, BigDecimal mid1Ob, BigDecimal mid1Obj,
+            BigDecimal mid2Desc, BigDecimal mid2Ob, BigDecimal mid2Obj,
+            BigDecimal semesterExam) {
+        return calculateTwoMidComponents(mid1Desc, mid1Ob, mid1Obj, BigDecimal.valueOf(5.0),
+                mid2Desc, mid2Ob, mid2Obj, BigDecimal.valueOf(5.0), semesterExam);
     }
 
     public static Map<String, BigDecimal> calculateMarksComponents(BigDecimal descriptive,
@@ -134,6 +156,15 @@ public class AcademicRecordService {
                                                                    BigDecimal objective,
                                                                    BigDecimal semesterExam) {
         return calculateTwoMidComponents(descriptive, openBook, objective, descriptive, openBook, objective, semesterExam);
+    }
+
+    public static Map<String, BigDecimal> calculateMarksComponents(BigDecimal descriptive,
+                                                                   BigDecimal openBook,
+                                                                   BigDecimal objective,
+                                                                   BigDecimal assignment,
+                                                                   BigDecimal semesterExam) {
+        return calculateTwoMidComponents(descriptive, openBook, objective, assignment,
+                descriptive, openBook, objective, assignment, semesterExam);
     }
 
     /**
@@ -235,16 +266,19 @@ public class AcademicRecordService {
                 : (payload.get("openBookMarks") != null ? new BigDecimal(payload.get("openBookMarks").toString()) : BigDecimal.valueOf(16));
         BigDecimal m1obj = payload.get("mid1ObjectiveMarks") != null ? new BigDecimal(payload.get("mid1ObjectiveMarks").toString())
                 : (payload.get("objectiveMarks") != null ? new BigDecimal(payload.get("objectiveMarks").toString()) : BigDecimal.valueOf(18));
+        BigDecimal m1as = payload.get("mid1AssignmentMarks") != null ? new BigDecimal(payload.get("mid1AssignmentMarks").toString())
+                : (payload.get("assignmentMarks") != null ? new BigDecimal(payload.get("assignmentMarks").toString()) : BigDecimal.valueOf(5));
 
         // Mid-2
         BigDecimal m2d = payload.get("mid2DescriptiveMarks") != null ? new BigDecimal(payload.get("mid2DescriptiveMarks").toString()) : m1d;
         BigDecimal m2ob = payload.get("mid2OpenBookMarks") != null ? new BigDecimal(payload.get("mid2OpenBookMarks").toString()) : m1ob;
         BigDecimal m2obj = payload.get("mid2ObjectiveMarks") != null ? new BigDecimal(payload.get("mid2ObjectiveMarks").toString()) : m1obj;
+        BigDecimal m2as = payload.get("mid2AssignmentMarks") != null ? new BigDecimal(payload.get("mid2AssignmentMarks").toString()) : m1as;
 
         BigDecimal sem = payload.get("semesterMarks") != null ? new BigDecimal(payload.get("semesterMarks").toString()) : BigDecimal.valueOf(65);
         BigDecimal att = payload.get("attendancePercentage") != null ? new BigDecimal(payload.get("attendancePercentage").toString()) : BigDecimal.valueOf(88);
 
-        Map<String, BigDecimal> computed = calculateTwoMidComponents(m1d, m1ob, m1obj, m2d, m2ob, m2obj, sem);
+        Map<String, BigDecimal> computed = calculateTwoMidComponents(m1d, m1ob, m1obj, m1as, m2d, m2ob, m2obj, m2as, sem);
         BigDecimal total = computed.get("totalMarks");
         if (payload.get("totalMarks") != null) {
             total = new BigDecimal(payload.get("totalMarks").toString());
@@ -274,18 +308,21 @@ public class AcademicRecordService {
         record.setMid1DescriptiveMarks(computed.get("mid1DescriptiveMarks"));
         record.setMid1OpenBookMarks(computed.get("mid1OpenBookMarks"));
         record.setMid1ObjectiveMarks(computed.get("mid1ObjectiveMarks"));
+        record.setMid1AssignmentMarks(computed.get("mid1AssignmentMarks"));
         record.setMid1TotalMarks(computed.get("mid1TotalMarks"));
 
         record.setMid2DescriptiveMarks(computed.get("mid2DescriptiveMarks"));
         record.setMid2OpenBookMarks(computed.get("mid2OpenBookMarks"));
         record.setMid2ObjectiveMarks(computed.get("mid2ObjectiveMarks"));
+        record.setMid2AssignmentMarks(computed.get("mid2AssignmentMarks"));
         record.setMid2TotalMarks(computed.get("mid2TotalMarks"));
 
         record.setConvertedInternalMarks(computed.get("convertedInternalMarks"));
         record.setDescriptiveMarks(computed.get("descriptiveMarks"));
         record.setOpenBookMarks(computed.get("openBookMarks"));
         record.setObjectiveMarks(computed.get("objectiveMarks"));
-        record.setMidMarks(computed.get("mid1TotalMarks"));
+        record.setAssignmentMarks(computed.get("assignmentMarks"));
+        record.setMidMarks(computed.get("midMarks"));
         record.setInternalMarks(computed.get("convertedInternalMarks"));
         record.setSemesterMarks(computed.get("semesterMarks"));
         record.setTotalMarks(total);

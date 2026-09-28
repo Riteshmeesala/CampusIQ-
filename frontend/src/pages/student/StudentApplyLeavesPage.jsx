@@ -7,12 +7,14 @@ import {
   DescriptionOutlined, Add, Refresh
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { leaveAPI } from '../../services/api';
 import { getSharedLeaves, saveSharedLeave, DATA_SYNC_EVENTS, subscribeToDataSync } from '../../services/dataSync';
 import PageHeader from '../../components/shared/PageHeader';
 
 export default function StudentApplyLeavesPage() {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [form, setForm] = useState({
     type: 'Casual Leave',
@@ -22,17 +24,35 @@ export default function StudentApplyLeavesPage() {
   });
   const [successMsg, setSuccessMsg] = useState('');
 
-  const loadLeaves = () => {
-    setLeaves(getSharedLeaves());
+  const loadLeaves = async () => {
+    try {
+      setLoading(true);
+      const res = await leaveAPI.getMyLeaves();
+      const serverLeaves = res.data?.data || res.data || [];
+      if (Array.isArray(serverLeaves) && serverLeaves.length > 0) {
+        setLeaves(serverLeaves);
+      } else {
+        setLeaves(getSharedLeaves());
+      }
+    } catch (err) {
+      console.warn('Failed to load leaves from server, using local fallback:', err);
+      setLeaves(getSharedLeaves());
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadLeaves();
     const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.LEAVE_STATUS_CHANGED, () => loadLeaves());
-    return () => unsub();
+    const unsubApply = subscribeToDataSync(DATA_SYNC_EVENTS.LEAVE_APPLIED, () => loadLeaves());
+    return () => {
+      unsub();
+      unsubApply();
+    };
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.fromDate || !form.toDate || !form.reason.trim()) return;
 
@@ -40,8 +60,7 @@ export default function StudentApplyLeavesPage() {
     const to = new Date(form.toDate);
     const days = Math.max(1, Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1);
 
-    const newLeave = {
-      id: `LV-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
+    const payload = {
       studentName: user?.name || 'Student',
       rollNo: user?.username || '24CS001',
       type: form.type,
@@ -49,17 +68,26 @@ export default function StudentApplyLeavesPage() {
       toDate: form.toDate,
       days,
       reason: form.reason.trim(),
-      status: 'Pending Review',
-      approvedBy: 'Pending Faculty HOD Review',
-      dateApplied: new Date().toISOString().split('T')[0]
     };
 
-    saveSharedLeave(newLeave);
-    setLeaves(getSharedLeaves());
-    setOpenModal(false);
-    setForm({ type: 'Casual Leave', fromDate: '', toDate: '', reason: '' });
-    setSuccessMsg('Leave application submitted successfully for review!');
-    setTimeout(() => setSuccessMsg(''), 4000);
+    try {
+      const res = await leaveAPI.applyLeave(payload);
+      const created = res.data?.data || res.data || payload;
+      saveSharedLeave(created);
+      await loadLeaves();
+      setOpenModal(false);
+      setForm({ type: 'Casual Leave', fromDate: '', toDate: '', reason: '' });
+      setSuccessMsg('Leave application submitted successfully to backend server!');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      console.error('Error submitting leave to server:', err);
+      // Fallback
+      saveSharedLeave(payload);
+      setLeaves(getSharedLeaves());
+      setOpenModal(false);
+      setSuccessMsg('Leave saved locally (offline mode)');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    }
   };
 
   return (

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { broadcastDataChange, DATA_SYNC_EVENTS } from './dataSync';
 
 // Backend runs at :8080/api  (server.servlet.context-path=/api in application.properties)
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
@@ -22,9 +23,48 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── RESPONSE INTERCEPTOR: handle 401 globally ─────────────────────────────
+// ── RESPONSE INTERCEPTOR: handle 401 globally & auto-sync mutations ─────────────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const method = response.config?.method?.toLowerCase();
+    const url = response.config?.url || '';
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      if (url.includes('/fees')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.FEE_UPDATED, response.data);
+      } else if (url.includes('/attendance')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.ATTENDANCE_UPDATED, response.data);
+      } else if (url.includes('/exams')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.EXAM_UPDATED, response.data);
+      } else if (url.includes('/results') || url.includes('/academic-records') || url.includes('/cgpa')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, response.data);
+      } else if (url.includes('/timetable')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.TIMETABLE_UPDATED, response.data);
+      } else if (url.includes('/courses')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.COURSE_UPDATED, response.data);
+      } else if (url.includes('/users') || url.includes('/registrations') || url.includes('/faculty-assignments')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.USER_DATA_UPDATED, response.data);
+      } else if (url.includes('/notifications') || url.includes('/announcements')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.NOTIFICATION_DISPATCHED, response.data);
+      } else if (url.includes('/leaves')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.LEAVE_APPLIED, response.data);
+      } else if (url.includes('/grievances')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.GRIEVANCE_SUBMITTED, response.data);
+      } else if (url.includes('/certificates')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.CERTIFICATE_REQUESTED, response.data);
+      } else if (url.includes('/mentoring')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.COUNSELING_REQUESTED, response.data);
+      } else if (url.includes('/warnings')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.WARNING_ISSUED, response.data);
+      } else if (url.includes('/surveys')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.SURVEY_SUBMITTED, response.data);
+      } else if (url.includes('/projects')) {
+        broadcastDataChange(DATA_SYNC_EVENTS.PROJECT_PROGRESS_SUBMITTED, response.data);
+      } else {
+        broadcastDataChange('CAMPUSIQ_DATA_MUTATED', response.data);
+      }
+    }
+    return response;
+  },
   (error) => {
     const status = error.response?.status;
     const url = error.config?.url || '';
@@ -63,6 +103,8 @@ export const attendanceAPI = {
   getStudentAttendance: (studentId)           => api.get(`/attendance/student/${studentId}`),
   getStudentCoursePct:  (studentId, courseId) => api.get(`/attendance/student/${studentId}/course/${courseId}/percentage`),
   markAttendance:       (data)                => api.post('/attendance/mark', data),
+  mark:                 (data)                => api.post('/attendance/mark', data),
+  getAllAttendance:     ()                    => api.get('/attendance/all'),
   getByDateAndCourse:   (courseId, date)      => api.get(`/attendance/course/${courseId}/date/${date}`),
 };
 
@@ -71,11 +113,14 @@ export const attendanceAPI = {
 export const feeAPI = {
   getMyFees:          ()      => api.get('/fees/my'),
   getStudentFees:     (id)    => api.get(`/fees/student/${id}`),
-  getAllFees:          ()      => api.get('/fees/all'),
+  getAllFees:         ()      => api.get('/fees/all'),
+  getFees:            ()      => api.get('/fees'),
   createFee:          (data)  => api.post('/fees', data),
   getMyPendingAmount: ()      => api.get('/fees/my/pending-amount'),
   createPaymentOrder: (feeId) => api.post(`/fees/${feeId}/create-order`),
   verifyPayment:      (data)  => api.post('/fees/verify-payment', data),
+  getReceipts:        ()      => api.get('/fees/receipts'),
+  getConfig:          ()      => api.get('/fees/config'),
   updateFee:          (id, data) => api.put(`/fees/${id}`, data),
   updateFeeStatus:    (id, status) => api.patch(`/fees/${id}/status`, { status }),
   deleteFee:          (id)    => api.delete(`/fees/${id}`),
@@ -124,9 +169,15 @@ export const notificationAPI = {
   broadcast:     (data) => api.post('/notifications/broadcast', data),
 };
 
-// POST /chatbot/chat
+// POST /chatbot/chat and session management (ChatGPT / Gemini style)
 export const chatbotAPI = {
-  sendMessage: (message) => api.post('/chatbot/chat', { message }),
+  sendMessage:        (message, history, sessionId) => api.post('/chatbot/chat', { message, history: history || [], sessionId }),
+  getSessions:        ()                            => api.get('/chatbot/sessions'),
+  getSessionMessages: (sessionId)                   => api.get(`/chatbot/sessions/${sessionId}`),
+  createSession:      (title)                       => api.post('/chatbot/sessions', { title }),
+  togglePinSession:   (sessionId)                   => api.put(`/chatbot/sessions/${sessionId}/pin`),
+  renameSession:      (sessionId, title)            => api.put(`/chatbot/sessions/${sessionId}/title`, { title }),
+  deleteSession:      (sessionId)                   => api.delete(`/chatbot/sessions/${sessionId}`),
 };
 
 // GET/POST/PUT/DELETE /courses
@@ -152,10 +203,16 @@ export const timetableAPI = {
 
 // ── Aliases for backward compatibility with page components ──────────────
 export const aiAPI = {
-  getMyPerformance:      ()          => api.get('/analytics/performance/my'),
-  getStudentPerformance: (studentId) => api.get(`/analytics/performance/student/${studentId}`),
-  chat:                  (message, history) => api.post('/chatbot/chat', { message, history: history || [] }),
-  generateStudyPlan:     ()          => api.get('/analytics/performance/my'),
+  getMyPerformance:      ()                         => api.get('/analytics/performance/my'),
+  getStudentPerformance: (studentId)                => api.get(`/analytics/performance/student/${studentId}`),
+  chat:                  (message, history, sessionId) => api.post('/chatbot/chat', { message, history: history || [], sessionId }),
+  getSessions:        ()                            => api.get('/chatbot/sessions'),
+  getSessionMessages: (sessionId)                   => api.get(`/chatbot/sessions/${sessionId}`),
+  createSession:      (title)                       => api.post('/chatbot/sessions', { title }),
+  togglePinSession:   (sessionId)                   => api.put(`/chatbot/sessions/${sessionId}/pin`),
+  renameSession:      (sessionId, title)            => api.put(`/chatbot/sessions/${sessionId}/title`, { title }),
+  deleteSession:      (sessionId)                   => api.delete(`/chatbot/sessions/${sessionId}`),
+  generateStudyPlan:     ()                         => api.get('/analytics/performance/my'),
 };
 
 export const notifAPI = notificationAPI;
@@ -194,6 +251,12 @@ export const scheduleAPI = {
   deleteSchedule: (id) => api.delete(`/schedule/${id}`),
 };
 
+// Department & College Events
+export const eventAPI = {
+  getAll: () => api.get('/department-events'),
+  publish: (data) => api.post('/department-events/publish', data),
+};
+
 // GPA endpoints
 export const gpaAPI = {
   getMyGpa: () => api.get('/results/my/gpa'),
@@ -205,6 +268,7 @@ export const gpaAPI = {
 export const cgpaUploadAPI = {
   publishCgpa: (data) => api.post('/cgpa/publish', data),
   getStudentCgpa: (id) => api.get(`/cgpa/student/${id}`),
+  getMyCgpa: () => api.get('/cgpa/my'),
   getAllCgpa: () => api.get('/cgpa/all'),
 };
 
@@ -231,6 +295,7 @@ export const facultyAssignmentAPI = {
 
 // POST /announcements/send*
 export const announcementAPI = {
+  getAll:           ()     => api.get('/announcements'),
   sendToAll:        (data) => api.post('/announcements/send', data),
   sendHoliday:      (data) => api.post('/announcements/send/holiday', data),
   sendExamReminder: (data) => api.post('/announcements/send/exam', data),
@@ -244,6 +309,83 @@ export const registrationAPI = {
   getRegistrationStats:     ()     => api.get('/registrations/stats'),
   importExcelStudents:      (data) => api.post('/registrations/import-excel', data),
   deleteRegistration:       (id)   => api.delete(`/registrations/${id}`),
+};
+
+// ── STUDENT LEAVE MANAGEMENT ──
+export const leaveAPI = {
+  getAll:           ()                      => api.get('/leaves'),
+  getMyLeaves:      ()                      => api.get('/leaves/my'),
+  applyLeave:       (data)                  => api.post('/leaves/apply', data),
+  updateStatus:     (id, status, remarks)   => api.put(`/leaves/${id}/status`, { status, remarks }),
+};
+
+// ── CERTIFICATES ──
+export const certificateAPI = {
+  getAll:             ()      => api.get('/certificates'),
+  getMyCertificates:  ()      => api.get('/certificates'),
+  requestCertificate: (data)  => api.post('/certificates/request', data),
+  verifyCertificate:  (id)    => api.get(`/certificates/verify/${id}`),
+};
+
+// ── GRIEVANCES ──
+export const grievanceAPI = {
+  getAll:           ()                => api.get('/grievances'),
+  getMyGrievances:  ()                => api.get('/grievances'),
+  submitGrievance:  (data)            => api.post('/grievances/submit', data),
+  resolveGrievance: (id, response)    => api.put(`/grievances/${id}/resolve`, { response }),
+};
+
+// ── MENTORING & COUNSELING ──
+export const mentoringAPI = {
+  getAll:         ()                 => api.get('/mentoring'),
+  getMyMentoring: ()                 => api.get('/mentoring'),
+  bookSession:    (data)             => api.post('/mentoring/book', data),
+  updateRemarks:  (id, mentorRemarks)=> api.put(`/mentoring/${id}/remarks`, { mentorRemarks }),
+};
+
+// ── PLACEMENTS ──
+export const placementAPI = {
+  getDrives:      ()               => api.get('/placements/drives'),
+  getCalendar:    ()               => api.get('/placements/calendar'),
+  applyDrive:     (driveId, data)  => api.post(`/placements/apply/${driveId}`, data || {}),
+};
+
+// ── DIGITAL LIBRARY ──
+export const libraryAPI = {
+  getOverview:    ()               => api.get('/library'),
+  getBooks:       (query)          => api.get('/library/books', { params: { query } }),
+  getBorrowed:    ()               => api.get('/library/borrowed'),
+  renewBook:      (issueId)        => api.post(`/library/renew/${issueId}`),
+  getInvoices:    ()               => api.get('/library/invoices'),
+};
+
+// ── ACADEMIC PROJECTS ──
+export const projectAPI = {
+  getMyProjects:    ()      => api.get('/projects'),
+  getAllProjects:   ()      => api.get('/projects'),
+  submitMilestone:  (data)  => api.post('/projects/submit-milestone', data),
+};
+
+// ── STUDENT WARNINGS ──
+export const warningAPI = {
+  getAll:               ()     => api.get('/warnings'),
+  getMyWarnings:        ()     => api.get('/warnings'),
+  issueWarning:         (data) => api.post('/warnings/issue', data),
+  acknowledgeWarning:   (id)   => api.post(`/warnings/${id}/acknowledge`),
+};
+
+// ── SURVEYS & FEEDBACK ──
+export const surveyAPI = {
+  submitSurvey: (data) => api.post('/surveys/submit', data),
+  getSummary:   ()     => api.get('/surveys/summary'),
+};
+
+// ── CAMPUS SERVICES ──
+export const campusServicesAPI = {
+  getOverview:    () => api.get('/campus-services'),
+  getHostelDetails: () => api.get('/campus-services/hostel'),
+  getBusRoutes:   () => api.get('/campus-services/bus-routes'),
+  getYearbook:    () => api.get('/campus-services/yearbook'),
 };
 
 export default api;

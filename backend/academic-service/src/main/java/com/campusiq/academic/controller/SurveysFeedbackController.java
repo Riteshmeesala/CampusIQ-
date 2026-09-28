@@ -23,7 +23,7 @@ public class SurveysFeedbackController {
         return ResponseEntity.ok(ApiResponse.success(record, "Survey response and ratings recorded successfully"));
     }
 
-    @GetMapping("/summary")
+    @GetMapping({"", "/summary"})
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSummary() {
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalSubmissions", responses.size());

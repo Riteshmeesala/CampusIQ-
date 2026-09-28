@@ -1,19 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, TextField, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Chip, Alert } from '@mui/material';
 import { BusinessCenterOutlined, Add } from '@mui/icons-material';
 import PageHeader from '../../components/shared/PageHeader';
+import { getSharedInternships, saveSharedInternship, subscribeToDataSync, DATA_SYNC_EVENTS } from '../../services/dataSync';
+import { useAuth } from '../../context/AuthContext';
 
 export default function StudentInternshipsPage() {
+  const { user } = useAuth();
   const [internships, setInternships] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [form, setForm] = useState({ company: '', role: '', duration: '3 Months', stipend: '', mode: 'Remote', status: 'Ongoing' });
   const [msg, setMsg] = useState('');
 
+  const loadInternships = () => {
+    setInternships(getSharedInternships());
+  };
+
+  useEffect(() => {
+    loadInternships();
+    const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.INTERNSHIP_REGISTERED, () => loadInternships());
+    return () => unsub();
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.company.trim() || !form.role.trim()) return;
-    const item = { id: Date.now(), ...form };
-    setInternships([item, ...internships]);
+    const item = { 
+      id: Date.now(), 
+      studentName: user?.name || 'Student',
+      rollNo: user?.username || '24CS001',
+      ...form 
+    };
+    saveSharedInternship(item);
+    setInternships(getSharedInternships());
     setOpenModal(false);
     setForm({ company: '', role: '', duration: '3 Months', stipend: '', mode: 'Remote', status: 'Ongoing' });
     setMsg('Internship details recorded successfully!');

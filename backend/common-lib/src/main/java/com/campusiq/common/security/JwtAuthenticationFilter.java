@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -28,27 +29,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
             if (StringUtils.hasText(jwt)) {
                 if (jwt.startsWith("campusiq_jwt_token_")) {
                     Role role = Role.STUDENT;
-                    Long userId = 3L;
-                    String email = "student@campusiq.edu.in";
+                    Long userId = 14L;
+                    String username = "Ritesh@0512";
+                    String email = "23bq1a1268@vvit.net";
                     if (jwt.contains("admin")) {
                         role = Role.ADMIN;
-                        userId = 1L;
-                        email = "admin@campusiq.edu.in";
+                        userId = 11L;
+                        username = "admin";
+                        email = "admin@campusiq.com";
                     } else if (jwt.contains("faculty")) {
                         role = Role.FACULTY;
-                        userId = 2L;
-                        email = "faculty@campusiq.edu.in";
+                        userId = 12L;
+                        username = "faculty_raj";
+                        email = "rajesh.sharma@campusiq.com";
                     }
-                    UserPrincipal principal = UserPrincipal.create(userId, email, email, role);
+                    UserPrincipal principal = UserPrincipal.create(userId, username, email, role);
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

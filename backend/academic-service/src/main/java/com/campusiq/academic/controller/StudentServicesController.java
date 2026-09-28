@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @RestController
@@ -77,6 +76,17 @@ public class StudentServicesController {
         cs1.put("outcome", "Satisfactory");
         cs1.put("status", "Completed");
         counselingStore.add(cs1);
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getOverview() {
+        Map<String, Object> overview = new HashMap<>();
+        overview.put("totalLeaves", leavesStore.size());
+        overview.put("totalCertificates", certificatesStore.size());
+        overview.put("totalGrievances", grievancesStore.size());
+        overview.put("totalCounselingSessions", counselingStore.size());
+        overview.put("status", "ACTIVE");
+        return ResponseEntity.ok(ApiResponse.success(overview));
     }
 
     // ==========================================

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, Button, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -12,10 +12,22 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { getSharedInternships, saveSharedInternship, subscribeToDataSync, DATA_SYNC_EVENTS } from '../../services/dataSync';
 
 export default function StudentInternshipsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ roll: '', name: '', company: '', role: '', duration: '', stipend: '' });
+  const [sharedInternships, setSharedInternships] = useState([]);
+
+  const loadInternships = () => {
+    setSharedInternships(getSharedInternships());
+  };
+
+  useEffect(() => {
+    loadInternships();
+    const unsub = subscribeToDataSync(DATA_SYNC_EVENTS.INTERNSHIP_REGISTERED, () => loadInternships());
+    return () => unsub();
+  }, []);
 
   const handleApprove = (name) => {
     toast.success(`Internship NOC & academic credit approved for ${name}.`);
@@ -79,6 +91,15 @@ export default function StudentInternshipsPage() {
               </TableHead>
               <TableBody>
                 {[
+                  ...sharedInternships.map(s => ({
+                    roll: s.rollNo || '24CS001',
+                    name: s.studentName || 'Student',
+                    company: s.company,
+                    role: s.role,
+                    dur: s.duration,
+                    stipend: s.stipend || '₹ 25,000/mo',
+                    status: s.status ? s.status.toUpperCase() : 'UNDER REVIEW'
+                  })),
                   { roll: '21CS001', name: 'Aarav Patel', company: 'Amazon Development Centre', role: 'Software Development Intern', dur: '6 Months (Jan - Jun 2024)', stipend: '₹ 65,000/mo', status: 'APPROVED' },
                   { roll: '21CS014', name: 'Bhavna Sharma', company: 'Microsoft India R&D', role: 'Cloud & AI Engineer Intern', dur: '6 Months (Jan - Jun 2024)', stipend: '₹ 50,000/mo', status: 'APPROVED' },
                   { roll: '21CS028', name: 'Chetan Varma', company: 'Oracle Financial Services', role: 'Full Stack Java Intern', dur: '4 Months (Feb - May 2024)', stipend: '₹ 35,000/mo', status: 'APPROVED' },

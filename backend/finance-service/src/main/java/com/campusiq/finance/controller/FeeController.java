@@ -14,6 +14,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import com.campusiq.common.enums.Role;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -57,8 +59,8 @@ public class FeeController {
         return ResponseEntity.ok(ApiResponse.success(feeService.getStudentFees(studentId)));
     }
 
-    @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping({"", "/all"})
+    @PreAuthorize("hasAnyRole('ADMIN','FACULTY')")
     public ResponseEntity<ApiResponse<List<Fee>>> all() {
         return ResponseEntity.ok(ApiResponse.success(feeService.getAllFees()));
     }
@@ -85,6 +87,56 @@ public class FeeController {
         return ResponseEntity.ok(ApiResponse.success(null, "Fee deleted"));
     }
 
+    @GetMapping("/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getConfig() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("testMode", paymentService.isTestMode());
+        config.put("keyId", paymentService.getKeyId());
+        config.put("gateway", "Razorpay");
+        return ResponseEntity.ok(ApiResponse.success(config));
+    }
+
+    @PostMapping("/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateConfig(@RequestBody Map<String, String> body) {
+        if (body != null) {
+            String newKey = body.get("keyId");
+            String newSecret = body.get("keySecret");
+            if (newKey != null && !newKey.isBlank()) {
+                paymentService.setKeyId(newKey.trim());
+            }
+            if (newSecret != null && !newSecret.isBlank()) {
+                paymentService.setKeySecret(newSecret.trim());
+            }
+        }
+        return getConfig();
+    }
+
+    @GetMapping("/receipts")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getReceipts(@AuthenticationPrincipal UserPrincipal me) {
+        List<Fee> fees = (me != null && me.getRole() == Role.ADMIN) ? feeService.getAllFees() : (me != null ? feeService.getStudentFees(me.getId()) : List.of());
+        List<Map<String, Object>> receipts = new java.util.ArrayList<>();
+        for (Fee f : fees) {
+            if (f.getStatus() == Fee.FeeStatus.PAID) {
+                Map<String, Object> r = new HashMap<>();
+                r.put("id", f.getId());
+                r.put("receiptNo", "RCP-2026-" + String.format("%04d", f.getId()));
+                r.put("studentName", f.getStudent() != null ? f.getStudent().getName() : "Student");
+                r.put("rollNo", f.getStudent() != null ? f.getStudent().getEnrollmentNumber() : "24CS001");
+                r.put("date", f.getPaidDate() != null ? f.getPaidDate().toString() : java.time.LocalDate.now().toString());
+                r.put("description", f.getDescription() != null ? f.getDescription() : f.getFeeType());
+                r.put("amount", "₹" + f.getAmount());
+                r.put("amountNum", f.getAmount());
+                r.put("feeType", f.getFeeType());
+                r.put("mode", f.getRazorpayPaymentId() != null && f.getRazorpayPaymentId().startsWith("pay_test_") ? "Razorpay (Test Mode)" : "Razorpay Online (UPI/Card)");
+                r.put("paymentId", f.getRazorpayPaymentId());
+                r.put("orderId", f.getRazorpayOrderId());
+                r.put("status", "Settled & Verified");
+                receipts.add(r);
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.success(receipts));
+    }
+
     @PostMapping("/{feeId}/create-order")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createOrder(@PathVariable Long feeId) {
         Fee fee = feeService.getFeeById(feeId);
@@ -95,11 +147,11 @@ public class FeeController {
     }
 
     @PostMapping("/verify-payment")
-    public ResponseEntity<ApiResponse<String>> verifyPayment(@RequestBody Map<String, String> body) {
-        String orderId = body.get("razorpayOrderId");
-        String paymentId = body.get("razorpayPaymentId");
-        String signature = body.get("razorpaySignature");
-        Long feeId = Long.parseLong(body.get("feeId"));
+    public ResponseEntity<ApiResponse<String>> verifyPayment(@RequestBody Map<String, Object> body) {
+        String orderId = body.get("razorpayOrderId") != null ? String.valueOf(body.get("razorpayOrderId")) : null;
+        String paymentId = body.get("razorpayPaymentId") != null ? String.valueOf(body.get("razorpayPaymentId")) : null;
+        String signature = body.get("razorpaySignature") != null ? String.valueOf(body.get("razorpaySignature")) : null;
+        Long feeId = Long.parseLong(String.valueOf(body.get("feeId")));
 
         boolean valid = paymentService.verifyPayment(orderId, paymentId, signature);
 

@@ -8,9 +8,10 @@ import {
 } from '@mui/material';
 import {
   School, Event, AccessTime, LocationOn, Add, Delete,
-  Close, Refresh
+  Close, Refresh, Edit, AssignmentTurnedIn
 } from '@mui/icons-material';
-import { examAPI, courseAPI } from '../../services/api';
+import { examAPI, courseAPI, resultAPI, userAPI } from '../../services/api';
+import { updateSharedStudentCgpa, broadcastDataChange, DATA_SYNC_EVENTS } from '../../services/dataSync';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
@@ -38,6 +39,9 @@ function CreateExamDialog({ open, onClose, onCreated }) {
     durationMinutes: 120, totalMarks: 100, passingMarks: 40,
     venue: '', examType: 'MID_SEM', semester: 4,
   });
+  const [manualCourse, setManualCourse] = useState(false);
+  const [customCourseCode, setCustomCourseCode] = useState('');
+  const [customCourseName, setCustomCourseName] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,25 +51,62 @@ function CreateExamDialog({ open, onClose, onCreated }) {
       durationMinutes: 120, totalMarks: 100, passingMarks: 40,
       venue: '', examType: 'MID_SEM', semester: 4,
     });
+    setManualCourse(false);
+    setCustomCourseCode('');
+    setCustomCourseName('');
     courseAPI.getAll()
-      .then(r => setCourses(r.data?.data || []))
-      .catch(() => toast.error('Could not load courses'));
+      .then(r => {
+        const list = r.data?.data || [];
+        setCourses(list);
+        if (list.length === 0) setManualCourse(true);
+      })
+      .catch(() => {
+        setManualCourse(true);
+      });
   }, [open]);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const handleCreate = async () => {
     if (!form.examName.trim()) { toast.warning('Enter exam name'); return; }
-    if (!form.courseId)        { toast.warning('Select a course'); return; }
     if (!form.scheduledDate)   { toast.warning('Select exam date & time'); return; }
     if (Number(form.passingMarks) > Number(form.totalMarks)) {
       toast.warning('Passing marks cannot exceed total marks'); return;
     }
+
     setSaving(true);
+    let targetCourseId = form.courseId;
+
+    if (manualCourse || !targetCourseId) {
+      if (!customCourseCode.trim() || !customCourseName.trim()) {
+        toast.warning('Please enter Course Code and Course Title manually');
+        setSaving(false);
+        return;
+      }
+      try {
+        const cRes = await courseAPI.create({
+          courseCode: customCourseCode.trim().toUpperCase(),
+          courseName: customCourseName.trim(),
+          credits: 4,
+          department: 'Computer Science'
+        });
+        targetCourseId = cRes.data?.data?.id;
+      } catch (err) {
+        const existing = courses.find(c => c.courseCode?.toLowerCase() === customCourseCode.trim().toLowerCase());
+        if (existing) {
+          targetCourseId = existing.id;
+        } else {
+          toast.error('Could not register manual course: ' + (err.response?.data?.message || err.message));
+          setSaving(false);
+          return;
+        }
+      }
+    }
+
     try {
       await examAPI.createExam({
         examName:        form.examName.trim(),
-        courseId:        Number(form.courseId),
+        courseId:        Number(targetCourseId),
         scheduledDate:   form.scheduledDate,
         durationMinutes: Number(form.durationMinutes),
         totalMarks:      Number(form.totalMarks),
@@ -74,7 +115,7 @@ function CreateExamDialog({ open, onClose, onCreated }) {
         examType:        form.examType,
         semester:        Number(form.semester),
       });
-      toast.success('✅ Exam created successfully!');
+      toast.success('✅ Exam created and scheduled successfully!');
       onCreated();
       onClose();
     } catch (e) {
@@ -104,17 +145,55 @@ function CreateExamDialog({ open, onClose, onCreated }) {
               placeholder="e.g. CS401 Mid-Semester Exam" />
           </Grid>
 
-          {/* Course */}
-          <Grid item xs={12} sm={8}>
-            <TextField select fullWidth size="small" label="Course *"
-              value={form.courseId} onChange={e => set('courseId', e.target.value)}>
-              <MenuItem value="">— Select Course —</MenuItem>
-              {courses.map(c => (
-                <MenuItem key={c.id} value={String(c.id)}>
-                  <strong>{c.courseCode}</strong>&nbsp;— {c.courseName}
-                </MenuItem>
-              ))}
-            </TextField>
+          {/* Course Selection or Manual Course Input */}
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: COLORS.textMuted }}>
+                {manualCourse ? 'MANUAL COURSE ENTRY' : 'SELECT FROM REGISTERED COURSES'}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => setManualCourse(p => !p)}
+                sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700 }}
+              >
+                {manualCourse ? '← Pick from list' : '✍️ Enter Course Manually'}
+              </Button>
+            </Box>
+
+            {manualCourse ? (
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} sm={5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Course Code *"
+                    placeholder="e.g. CS401"
+                    value={customCourseCode}
+                    onChange={e => setCustomCourseCode(e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={7}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Course Title *"
+                    placeholder="e.g. Operating Systems"
+                    value={customCourseName}
+                    onChange={e => setCustomCourseName(e.target.value)}
+                  />
+                </Grid>
+              </Grid>
+            ) : (
+              <TextField select fullWidth size="small" label="Course *"
+                value={form.courseId} onChange={e => set('courseId', e.target.value)}>
+                <MenuItem value="">— Select Course —</MenuItem>
+                {courses.map(c => (
+                  <MenuItem key={c.id} value={String(c.id)}>
+                    <strong>{c.courseCode}</strong>&nbsp;— {c.courseName}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
           </Grid>
 
           {/* Exam type */}
@@ -181,6 +260,118 @@ function CreateExamDialog({ open, onClose, onCreated }) {
   );
 }
 
+// ── Enter Marks Manually Dialog ──────────────────────────────────────────────
+function EnterMarksDialog({ open, onClose, exams, onSubmitted }) {
+  const [students, setStudents] = useState([]);
+  const [form, setForm] = useState({
+    examId: '',
+    studentRoll: '',
+    marksObtained: '',
+    remarks: 'Manual marks entry'
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      userAPI.getStudents().then(r => setStudents(r.data?.data || [])).catch(() => {});
+      if (exams?.length > 0 && !form.examId) {
+        setForm(p => ({ ...p, examId: String(exams[0].id) }));
+      }
+    }
+  }, [open, exams]);
+
+  const handleSubmit = async () => {
+    if (!form.examId || !form.studentRoll.trim() || form.marksObtained === '') {
+      toast.warning('Please select Exam, Student Roll Number, and Marks');
+      return;
+    }
+    const matched = students.find(s => s.enrollmentNumber?.toLowerCase() === form.studentRoll.trim().toLowerCase() || String(s.id) === form.studentRoll.trim());
+    const studentId = matched ? matched.id : Number(form.studentRoll.trim());
+    if (!studentId || isNaN(studentId)) {
+      toast.warning('Invalid Student Roll Number or ID');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const selectedExam = exams.find(e => String(e.id) === String(form.examId));
+      await resultAPI.publishResults({
+        examId: Number(form.examId),
+        examType: selectedExam?.examType || 'MID_SEM',
+        studentMarks: { [studentId]: Number(form.marksObtained) },
+        remarks: form.remarks
+      });
+
+      const gpa = Number(form.marksObtained) / 10;
+      updateSharedStudentCgpa(studentId, gpa, selectedExam?.semester || 4, form.remarks);
+      broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, { examId: form.examId, studentId });
+
+      toast.success(`✅ Marks for ${form.studentRoll} saved and synced to student profile!`);
+      onSubmitted?.();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit student marks');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ fontWeight: 800, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        📝 Enter Student Marks Manually
+        <IconButton onClick={onClose} size="small"><Close fontSize="small" /></IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '15px !important' }}>
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label="Select Exam *"
+          value={form.examId}
+          onChange={e => setForm(p => ({ ...p, examId: e.target.value }))}
+        >
+          {exams.map(e => (
+            <MenuItem key={e.id} value={String(e.id)}>
+              {e.examName} ({e.examType})
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          fullWidth
+          size="small"
+          label="Student Roll No / ID *"
+          placeholder="e.g. 24CS001"
+          value={form.studentRoll}
+          onChange={e => setForm(p => ({ ...p, studentRoll: e.target.value }))}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          type="number"
+          label="Marks Obtained *"
+          placeholder="e.g. 88"
+          value={form.marksObtained}
+          onChange={e => setForm(p => ({ ...p, marksObtained: e.target.value }))}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          label="Remarks / Evaluation Note"
+          value={form.remarks}
+          onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
+        />
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={saving} sx={{ bgcolor: COLORS.primary }}>
+          {saving ? 'Saving...' : 'Save Marks'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -191,6 +382,7 @@ export default function ExamPage() {
   const [loading,       setLoading]    = useState(true);
   const [filter,        setFilter]     = useState('');
   const [createOpen,    setCreateOpen] = useState(false);
+  const [marksOpen,     setMarksOpen]  = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -239,11 +431,18 @@ export default function ExamPage() {
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
             {isStaff && (
-              <Button variant="contained" startIcon={<Add />}
-                onClick={() => setCreateOpen(true)}
-                sx={{ borderRadius: 2, bgcolor: COLORS.primary, fontSize: 12 }}>
-                Schedule Exam
-              </Button>
+              <>
+                <Button variant="contained" startIcon={<Add />}
+                  onClick={() => setCreateOpen(true)}
+                  sx={{ borderRadius: 2, bgcolor: COLORS.primary, fontSize: 12 }}>
+                  Schedule Exam
+                </Button>
+                <Button variant="outlined" startIcon={<Edit />}
+                  onClick={() => setMarksOpen(true)}
+                  sx={{ borderRadius: 2, fontSize: 12, textTransform: 'none', fontWeight: 700 }}>
+                  📝 Enter Marks Manually
+                </Button>
+              </>
             )}
             <Tooltip title="Refresh">
               <IconButton onClick={load} size="small"
@@ -439,6 +638,14 @@ export default function ExamPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={load}
+      />
+
+      {/* Manual Marks Entry Dialog */}
+      <EnterMarksDialog
+        open={marksOpen}
+        onClose={() => setMarksOpen(false)}
+        exams={exams}
+        onSubmitted={load}
       />
     </Box>
   );

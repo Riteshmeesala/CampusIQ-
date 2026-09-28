@@ -8,11 +8,11 @@ import {
 import {
   Save, Refresh, Edit, CheckCircle, FileUpload, FileDownload,
   CompareArrows, School, Person, AssignmentOutlined, Lock,
-  HelpOutline, Close
+  HelpOutline, Close, Add
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { userAPI, academicRecordAPI } from '../../services/api';
-import { updateSharedStudentCgpa, subscribeToDataSync, DATA_SYNC_EVENTS } from '../../services/dataSync';
+import { updateSharedStudentCgpa, subscribeToDataSync, broadcastDataChange, DATA_SYNC_EVENTS } from '../../services/dataSync';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
@@ -35,25 +35,39 @@ const getGradeColor = (grade) => {
 };
 
 // Institutional two-mid marks calculation (80% Best Mid + 20% Other Mid)
-export const computeTwoMidMarks = (m1d, m1ob, m1obj, m2d, m2ob, m2obj, sem) => {
-  const d1 = Math.max(0, Math.min(30, Number(m1d) || 0));
-  const o1 = Math.max(0, Math.min(20, Number(m1ob) || 0));
-  const j1 = Math.max(0, Math.min(20, Number(m1obj) || 0));
+export const computeTwoMidMarks = (m1d, m1ob, m1a, m1obj, m2d, m2ob, m2a, m2obj, sem) => {
+  let d1, o1, a1, j1, d2, o2, a2, j2, s;
+  if (sem === undefined) {
+    d1 = Math.max(0, Math.min(30, Number(m1d) || 0));
+    o1 = Math.max(0, Math.min(20, Number(m1ob) || 0));
+    a1 = 5;
+    j1 = Math.max(0, Math.min(20, Number(m1a) || 0));
+    d2 = Math.max(0, Math.min(30, Number(m1obj) || 0));
+    o2 = Math.max(0, Math.min(20, Number(m2d) || 0));
+    a2 = 5;
+    j2 = Math.max(0, Math.min(20, Number(m2ob) || 0));
+    s  = Math.max(0, Math.min(70, Number(m2a) || 0));
+  } else {
+    d1 = Math.max(0, Math.min(30, Number(m1d) || 0));
+    o1 = Math.max(0, Math.min(20, Number(m1ob) || 0));
+    a1 = Math.max(0, Math.min(5,  Number(m1a) || 0));
+    j1 = Math.max(0, Math.min(20, Number(m1obj) || 0));
+    d2 = Math.max(0, Math.min(30, Number(m2d) || 0));
+    o2 = Math.max(0, Math.min(20, Number(m2ob) || 0));
+    a2 = Math.max(0, Math.min(5,  Number(m2a) || 0));
+    j2 = Math.max(0, Math.min(20, Number(m2obj) || 0));
+    s  = Math.max(0, Math.min(70, Number(sem) || 0));
+  }
 
-  const d2 = Math.max(0, Math.min(30, Number(m2d) || 0));
-  const o2 = Math.max(0, Math.min(20, Number(m2ob) || 0));
-  const j2 = Math.max(0, Math.min(20, Number(m2obj) || 0));
+  // Institutional criteria: 30 Mid (Descriptive 30 -> 30/3, Open Book 20 -> 20/4, Assignment 5, Objective 20 -> 20/2) = 30
+  const m1Total = (d1 / 3.0) + (o1 / 4.0) + a1 + (j1 / 2.0); // Max 30
+  const m2Total = (d2 / 3.0) + (o2 / 4.0) + a2 + (j2 / 2.0); // Max 30
 
-  const s = Math.max(0, Math.min(75, Number(sem) || 0));
-
-  const m1Total = (d1 / 3.0) + (o1 / 4.0) + (j1 / 2.0); // Max 25
-  const m2Total = (d2 / 3.0) + (o2 / 4.0) + (j2 / 2.0); // Max 25
-
-  // Institutional 80/20 Rule: 80% Highest Mid + 20% Other Mid
+  // 80/20 Rule: 80% Highest Mid + 20% Other Mid -> Max 30
   const bestMid = Math.max(m1Total, m2Total);
   const otherMid = Math.min(m1Total, m2Total);
-  const internal = (0.80 * bestMid) + (0.20 * otherMid); // Max 25
-  const total = Math.min(100, internal + s);
+  const internal = (0.80 * bestMid) + (0.20 * otherMid); // Max 30
+  const total = Math.min(100, internal + s); // Max 100
 
   let grade = 'F';
   let gp = 0.0;
@@ -68,15 +82,18 @@ export const computeTwoMidMarks = (m1d, m1ob, m1obj, m2d, m2ob, m2obj, sem) => {
   return {
     mid1DescriptiveMarks: d1,
     mid1OpenBookMarks: o1,
+    mid1AssignmentMarks: a1,
     mid1ObjectiveMarks: j1,
     mid1TotalMarks: Number(m1Total.toFixed(2)),
     mid2DescriptiveMarks: d2,
     mid2OpenBookMarks: o2,
+    mid2AssignmentMarks: a2,
     mid2ObjectiveMarks: j2,
     mid2TotalMarks: Number(m2Total.toFixed(2)),
     convertedInternalMarks: Number(internal.toFixed(2)),
     descriptiveMarks: d1,
     openBookMarks: o1,
+    assignmentMarks: a1,
     objectiveMarks: j1,
     semesterMarks: s,
     totalMarks: Number(total.toFixed(2)),
@@ -111,15 +128,17 @@ export default function StudentAcademicRecordsPage() {
     creditHours: 3,
     mid1DescriptiveMarks: 27,
     mid1OpenBookMarks: 16,
+    mid1AssignmentMarks: 5,
     mid1ObjectiveMarks: 18,
-    mid1TotalMarks: 22,
+    mid1TotalMarks: 27,
     mid2DescriptiveMarks: 28.5,
     mid2OpenBookMarks: 18,
+    mid2AssignmentMarks: 5,
     mid2ObjectiveMarks: 19,
-    mid2TotalMarks: 23.5,
-    convertedInternalMarks: 22.75,
-    semesterMarks: 65,
-    totalMarks: 87.75,
+    mid2TotalMarks: 28.5,
+    convertedInternalMarks: 27.5,
+    semesterMarks: 62,
+    totalMarks: 89.5,
     grade: 'A',
     gradePoint: 9.0,
     attendancePercentage: 88,
@@ -189,14 +208,16 @@ export default function StudentAcademicRecordsPage() {
   const handleOpenSubjectEdit = (sub) => {
     const m1d = sub.mid1DescriptiveMarks ?? sub.descriptiveMarks ?? sub.midMarks ?? 27;
     const m1ob = sub.mid1OpenBookMarks ?? sub.openBookMarks ?? 16;
+    const m1a = sub.mid1AssignmentMarks ?? sub.assignmentMarks ?? 5;
     const m1obj = sub.mid1ObjectiveMarks ?? sub.objectiveMarks ?? 18;
 
     const m2d = sub.mid2DescriptiveMarks ?? m1d;
     const m2ob = sub.mid2OpenBookMarks ?? m1ob;
+    const m2a = sub.mid2AssignmentMarks ?? m1a;
     const m2obj = sub.mid2ObjectiveMarks ?? m1obj;
 
-    const sem = sub.semesterMarks ?? 65;
-    const computed = computeTwoMidMarks(m1d, m1ob, m1obj, m2d, m2ob, m2obj, sem);
+    const sem = sub.semesterMarks ?? 62;
+    const computed = computeTwoMidMarks(m1d, m1ob, m1a, m1obj, m2d, m2ob, m2a, m2obj, sem);
 
     setSubjectForm({
       subjectCode: sub.subjectCode,
@@ -205,10 +226,12 @@ export default function StudentAcademicRecordsPage() {
       creditHours: sub.creditHours || 3,
       mid1DescriptiveMarks: computed.mid1DescriptiveMarks,
       mid1OpenBookMarks: computed.mid1OpenBookMarks,
+      mid1AssignmentMarks: computed.mid1AssignmentMarks,
       mid1ObjectiveMarks: computed.mid1ObjectiveMarks,
       mid1TotalMarks: computed.mid1TotalMarks,
       mid2DescriptiveMarks: computed.mid2DescriptiveMarks,
       mid2OpenBookMarks: computed.mid2OpenBookMarks,
+      mid2AssignmentMarks: computed.mid2AssignmentMarks,
       mid2ObjectiveMarks: computed.mid2ObjectiveMarks,
       mid2TotalMarks: computed.mid2TotalMarks,
       convertedInternalMarks: computed.convertedInternalMarks,
@@ -228,24 +251,58 @@ export default function StudentAcademicRecordsPage() {
 
     const m1d = field === 'mid1DescriptiveMarks' ? num : nextForm.mid1DescriptiveMarks;
     const m1ob = field === 'mid1OpenBookMarks' ? num : nextForm.mid1OpenBookMarks;
+    const m1a = field === 'mid1AssignmentMarks' ? num : nextForm.mid1AssignmentMarks;
     const m1obj = field === 'mid1ObjectiveMarks' ? num : nextForm.mid1ObjectiveMarks;
 
     const m2d = field === 'mid2DescriptiveMarks' ? num : nextForm.mid2DescriptiveMarks;
     const m2ob = field === 'mid2OpenBookMarks' ? num : nextForm.mid2OpenBookMarks;
+    const m2a = field === 'mid2AssignmentMarks' ? num : nextForm.mid2AssignmentMarks;
     const m2obj = field === 'mid2ObjectiveMarks' ? num : nextForm.mid2ObjectiveMarks;
 
     const sem = field === 'semesterMarks' ? num : nextForm.semesterMarks;
 
-    const computed = computeTwoMidMarks(m1d, m1ob, m1obj, m2d, m2ob, m2obj, sem);
+    const computed = computeTwoMidMarks(m1d, m1ob, m1a, m1obj, m2d, m2ob, m2a, m2obj, sem);
     setSubjectForm({
       ...nextForm,
       ...computed,
     });
   };
 
+  // Open Dialog for Manual Subject Creation
+  const handleOpenAddSubject = () => {
+    const computed = computeTwoMidMarks(25, 16, 5, 17, 26, 17, 5, 18, 60);
+    setSubjectForm({
+      subjectCode: '',
+      subjectName: '',
+      facultyName: user?.name || 'Department Faculty',
+      creditHours: 3,
+      mid1DescriptiveMarks: 25,
+      mid1OpenBookMarks: 16,
+      mid1AssignmentMarks: 5,
+      mid1ObjectiveMarks: 17,
+      mid1TotalMarks: computed.mid1TotalMarks,
+      mid2DescriptiveMarks: 26,
+      mid2OpenBookMarks: 17,
+      mid2AssignmentMarks: 5,
+      mid2ObjectiveMarks: 18,
+      mid2TotalMarks: computed.mid2TotalMarks,
+      convertedInternalMarks: computed.convertedInternalMarks,
+      semesterMarks: 60,
+      totalMarks: computed.totalMarks,
+      grade: computed.grade,
+      gradePoint: computed.gradePoint,
+      attendancePercentage: 90,
+    });
+    setEditDialogOpen(true);
+  };
+
   // Save single subject to backend MySQL
   const handleSaveSingleSubject = async () => {
     if (!selectedStudent?.id) return;
+    if (!subjectForm.subjectCode.trim() || !subjectForm.subjectName.trim()) {
+      toast.warning('Please enter both Subject Code and Subject Name');
+      return;
+    }
     try {
       setSaving(true);
       const res = await academicRecordAPI.updateSubjectMarks(selectedStudent.id, {
@@ -257,6 +314,11 @@ export default function StudentAcademicRecordsPage() {
       
       const newCg = parseFloat(cgpaInput) || parseFloat(sgpaInput) || 8.5;
       updateSharedStudentCgpa(selectedStudent.id, newCg, activeSem, `Subject: ${subjectForm.subjectCode}`);
+
+      broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, {
+        studentId: selectedStudent.id,
+        semesterCode: activeSem
+      });
 
       setLastSavedSnapshot({
         timestamp: new Date().toLocaleTimeString(),
@@ -282,13 +344,15 @@ export default function StudentAcademicRecordsPage() {
     const sub = updated[idx];
     const m1d = sub.mid1DescriptiveMarks ?? sub.descriptiveMarks ?? sub.midMarks ?? 27;
     const m1ob = sub.mid1OpenBookMarks ?? sub.openBookMarks ?? 16;
+    const m1a = sub.mid1AssignmentMarks ?? sub.assignmentMarks ?? 5;
     const m1obj = sub.mid1ObjectiveMarks ?? sub.objectiveMarks ?? 18;
     const m2d = sub.mid2DescriptiveMarks ?? m1d;
     const m2ob = sub.mid2OpenBookMarks ?? m1ob;
+    const m2a = sub.mid2AssignmentMarks ?? m1a;
     const m2obj = sub.mid2ObjectiveMarks ?? m1obj;
     const sem = sub.semesterMarks ?? 65;
 
-    const computed = computeTwoMidMarks(m1d, m1ob, m1obj, m2d, m2ob, m2obj, sem);
+    const computed = computeTwoMidMarks(m1d, m1ob, m1a, m1obj, m2d, m2ob, m2a, m2obj, sem);
     updated[idx] = {
       ...updated[idx],
       ...computed
@@ -314,6 +378,11 @@ export default function StudentAcademicRecordsPage() {
       updateSharedStudentCgpa(selectedStudent.id, newCg, activeSem, `Batch Semester ${activeSem}`);
 
       toast.success(`✅ Successfully updated Semester ${activeSem} in MySQL & synchronized across all roles!`);
+      broadcastDataChange(DATA_SYNC_EVENTS.RESULT_PUBLISHED, {
+        studentId: selectedStudent.id,
+        semesterCode: activeSem
+      });
+
       setLastSavedSnapshot({
         timestamp: new Date().toLocaleTimeString(),
         type: `Batch Semester (${activeSem})`,
@@ -523,14 +592,31 @@ export default function StudentAcademicRecordsPage() {
                 Semester {activeSem} Course Evaluation Matrix
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Two-Mid Continuous Internal (80% Best + 20% Other $\rightarrow$ 25 Marks) + Semester Final (70 Marks) = Total (100)
+                Two-Mid Continuous Internal (80% Best + 20% Other &rarr; 30 Marks: Descriptive 30/3, Open Book 20/4, Assignment 5, Objective 20/2) + Semester Final (70 Marks) = Total (100)
               </Typography>
             </Box>
-            <Chip
-              label={`${editSubjects.length} Registered Subjects`}
-              size="small"
-              sx={{ bgcolor: '#f1f5f9', fontWeight: 600, fontSize: '0.75rem' }}
-            />
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Chip
+                label={`${editSubjects.length} Registered Subjects`}
+                size="small"
+                sx={{ bgcolor: '#f1f5f9', fontWeight: 600, fontSize: '0.75rem' }}
+              />
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<Add fontSize="small" />}
+                onClick={handleOpenAddSubject}
+                sx={{
+                  bgcolor: '#2563eb',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  borderRadius: 1
+                }}
+              >
+                Add Subject Manually
+              </Button>
+            </Box>
           </Box>
 
           {loadingRecords ? (
@@ -544,9 +630,9 @@ export default function StudentAcademicRecordsPage() {
                   <TableRow sx={{ bgcolor: '#f8fafc' }}>
                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }}>SUBJECT / CODE</TableCell>
                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">CREDITS</TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">MID-1 (/25)</TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">MID-2 (/25)</TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">INTERNAL (/25)</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">MID-1 (/30)</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">MID-2 (/30)</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">INTERNAL (/30)</TableCell>
                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">SEM EXAM (/70)</TableCell>
                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">TOTAL (/100)</TableCell>
                     <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem' }} align="center">GRADE</TableCell>
@@ -573,17 +659,17 @@ export default function StudentAcademicRecordsPage() {
                         </TableCell>
                         <TableCell align="center">
                           <Typography variant="body2" fontWeight={700} color={COLORS.primary} sx={{ fontSize: '0.8rem' }}>
-                            {Number(sub.mid1TotalMarks || sub.midMarks || 22).toFixed(1)}
+                            {Number(sub.mid1TotalMarks || sub.midMarks || 26).toFixed(1)}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
                           <Typography variant="body2" fontWeight={700} color={COLORS.primary} sx={{ fontSize: '0.8rem' }}>
-                            {Number(sub.mid2TotalMarks || sub.mid1TotalMarks || 23.5).toFixed(1)}
+                            {Number(sub.mid2TotalMarks || sub.mid1TotalMarks || 27.5).toFixed(1)}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
                           <Chip
-                            label={`${Number(sub.convertedInternalMarks || sub.internalMarks || 22.75).toFixed(1)} / 25`}
+                            label={`${Number(sub.convertedInternalMarks || sub.internalMarks || 26.5).toFixed(1)} / 30`}
                             size="small"
                             sx={{ bgcolor: '#eff6ff', color: COLORS.primary, fontWeight: 700, fontSize: '0.72rem' }}
                           />
@@ -592,15 +678,15 @@ export default function StudentAcademicRecordsPage() {
                           <TextField
                             size="small"
                             type="number"
-                            value={sub.semesterMarks ?? 65}
+                            value={sub.semesterMarks ?? 62}
                             disabled={isFaculty}
                             onChange={(e) => handleInlineSubjectChange(idx, 'semesterMarks', e.target.value)}
-                            inputProps={{ min: 0, max: 75, style: { textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', padding: '4px 6px' } }}
+                            inputProps={{ min: 0, max: 70, style: { textAlign: 'center', fontWeight: 700, fontSize: '0.8rem', padding: '4px 6px' } }}
                           />
                         </TableCell>
                         <TableCell align="center">
                           <Typography variant="body2" fontWeight={800} color={COLORS.textPrimary} sx={{ fontSize: '0.82rem' }}>
-                            {Number(sub.totalMarks || 87.75).toFixed(1)}
+                            {Number(sub.totalMarks || 88.5).toFixed(1)}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
@@ -652,16 +738,51 @@ export default function StudentAcademicRecordsPage() {
         </DialogTitle>
         <DialogContent sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
+            {/* SUBJECT IDENTITY */}
+            <Grid item xs={12} sm={4} sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Subject Code"
+                value={subjectForm.subjectCode}
+                onChange={e => setSubjectForm(prev => ({ ...prev, subjectCode: e.target.value.toUpperCase() }))}
+                placeholder="e.g. CS101"
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={5} sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Subject Name"
+                value={subjectForm.subjectName}
+                onChange={e => setSubjectForm(prev => ({ ...prev, subjectName: e.target.value }))}
+                placeholder="e.g. Data Structures"
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={3} sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Credits"
+                type="number"
+                value={subjectForm.creditHours}
+                onChange={e => setSubjectForm(prev => ({ ...prev, creditHours: Number(e.target.value) || 3 }))}
+                inputProps={{ min: 1, max: 6 }}
+              />
+            </Grid>
+
             {/* MID-1 SECTION */}
             <Grid item xs={12} sx={{ mt: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="subtitle2" fontWeight={700} color={COLORS.primary}>
-                  1. MID-1 EXAMINATION (Continuous Assessment 1 — Max 25)
+                  1. MID-1 EXAMINATION (Continuous Assessment 1 — Max 30)
                 </Typography>
-                {isAdmin && <Chip icon={<Lock sx={{ fontSize: '12px !important' }} />} label="Faculty Managed" size="small" sx={{ fontSize: 10 }} />}
+                {isAdmin && <Chip icon={<Lock sx={{ fontSize: '12px !important' }} />} label="Faculty Authority Only" size="small" sx={{ fontSize: 10, bgcolor: '#eff6ff', color: '#1d4ed8' }} />}
               </Box>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Descriptive (Max 30, /3)"
@@ -671,9 +792,10 @@ export default function StudentAcademicRecordsPage() {
                 onChange={(e) => handleSubjectMarksChange('mid1DescriptiveMarks', e.target.value)}
                 size="small"
                 inputProps={{ min: 0, max: 30 }}
+                helperText={`= ${(subjectForm.mid1DescriptiveMarks / 3).toFixed(1)}/10`}
               />
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Open Book (Max 20, /4)"
@@ -683,9 +805,23 @@ export default function StudentAcademicRecordsPage() {
                 onChange={(e) => handleSubjectMarksChange('mid1OpenBookMarks', e.target.value)}
                 size="small"
                 inputProps={{ min: 0, max: 20 }}
+                helperText={`= ${(subjectForm.mid1OpenBookMarks / 4).toFixed(1)}/5`}
               />
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Assignment (Max 5)"
+                type="number"
+                disabled={isAdmin}
+                value={subjectForm.mid1AssignmentMarks}
+                onChange={(e) => handleSubjectMarksChange('mid1AssignmentMarks', e.target.value)}
+                size="small"
+                inputProps={{ min: 0, max: 5 }}
+                helperText="Max: 5"
+              />
+            </Grid>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Objective (Max 20, /2)"
@@ -695,22 +831,23 @@ export default function StudentAcademicRecordsPage() {
                 onChange={(e) => handleSubjectMarksChange('mid1ObjectiveMarks', e.target.value)}
                 size="small"
                 inputProps={{ min: 0, max: 20 }}
+                helperText={`= ${(subjectForm.mid1ObjectiveMarks / 2).toFixed(1)}/10`}
               />
             </Grid>
             <Grid item xs={12}>
-              <Chip label={`Mid-1 Total: ${subjectForm.mid1TotalMarks} / 25`} color="primary" size="small" sx={{ fontWeight: 700 }} />
+              <Chip label={`Mid-1 Total: ${subjectForm.mid1TotalMarks} / 30`} color="primary" size="small" sx={{ fontWeight: 700 }} />
             </Grid>
 
             {/* MID-2 SECTION */}
             <Grid item xs={12} sx={{ mt: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="subtitle2" fontWeight={700} color={COLORS.primary}>
-                  2. MID-2 EXAMINATION (Continuous Assessment 2 — Max 25)
+                  2. MID-2 EXAMINATION (Continuous Assessment 2 — Max 30)
                 </Typography>
-                {isAdmin && <Chip icon={<Lock sx={{ fontSize: '12px !important' }} />} label="Faculty Managed" size="small" sx={{ fontSize: 10 }} />}
+                {isAdmin && <Chip icon={<Lock sx={{ fontSize: '12px !important' }} />} label="Faculty Authority Only" size="small" sx={{ fontSize: 10, bgcolor: '#eff6ff', color: '#1d4ed8' }} />}
               </Box>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Descriptive (Max 30, /3)"
@@ -720,9 +857,10 @@ export default function StudentAcademicRecordsPage() {
                 onChange={(e) => handleSubjectMarksChange('mid2DescriptiveMarks', e.target.value)}
                 size="small"
                 inputProps={{ min: 0, max: 30 }}
+                helperText={`= ${(subjectForm.mid2DescriptiveMarks / 3).toFixed(1)}/10`}
               />
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Open Book (Max 20, /4)"
@@ -732,9 +870,23 @@ export default function StudentAcademicRecordsPage() {
                 onChange={(e) => handleSubjectMarksChange('mid2OpenBookMarks', e.target.value)}
                 size="small"
                 inputProps={{ min: 0, max: 20 }}
+                helperText={`= ${(subjectForm.mid2OpenBookMarks / 4).toFixed(1)}/5`}
               />
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Assignment (Max 5)"
+                type="number"
+                disabled={isAdmin}
+                value={subjectForm.mid2AssignmentMarks}
+                onChange={(e) => handleSubjectMarksChange('mid2AssignmentMarks', e.target.value)}
+                size="small"
+                inputProps={{ min: 0, max: 5 }}
+                helperText="Max: 5"
+              />
+            </Grid>
+            <Grid item xs={3}>
               <TextField
                 fullWidth
                 label="Objective (Max 20, /2)"
@@ -744,10 +896,11 @@ export default function StudentAcademicRecordsPage() {
                 onChange={(e) => handleSubjectMarksChange('mid2ObjectiveMarks', e.target.value)}
                 size="small"
                 inputProps={{ min: 0, max: 20 }}
+                helperText={`= ${(subjectForm.mid2ObjectiveMarks / 2).toFixed(1)}/10`}
               />
             </Grid>
             <Grid item xs={12}>
-              <Chip label={`Mid-2 Total: ${subjectForm.mid2TotalMarks} / 25`} color="primary" size="small" sx={{ fontWeight: 700 }} />
+              <Chip label={`Mid-2 Total: ${subjectForm.mid2TotalMarks} / 30`} color="primary" size="small" sx={{ fontWeight: 700 }} />
             </Grid>
 
             {/* COMBINED INTERNAL & SEMESTER EXAM */}
@@ -759,23 +912,23 @@ export default function StudentAcademicRecordsPage() {
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Continuous Internal (80% Best Mid + 20% Other Mid, Max 25)"
+                label="Continuous Internal (80% Best Mid + 20% Other Mid, Max 30)"
                 value={subjectForm.convertedInternalMarks}
                 disabled
                 size="small"
               />
             </Grid>
             <Grid item xs={6}>
-              <Tooltip title={isFaculty ? "Semester Final Marks are entered by Central Examination / Admin." : "Enter final end-term examination marks (Max 70)"}>
+              <Tooltip title={isFaculty ? "Semester Final Marks are entered by Admin only." : "Enter final semester examination marks (Max 70)"}>
                 <TextField
                   fullWidth
-                  label="Semester Exam Marks (Max 70)"
+                  label="Semester Exam Marks (Max 70 — Admin Authority)"
                   type="number"
                   disabled={isFaculty}
                   value={subjectForm.semesterMarks}
                   onChange={(e) => handleSubjectMarksChange('semesterMarks', e.target.value)}
                   size="small"
-                  inputProps={{ min: 0, max: 75 }}
+                  inputProps={{ min: 0, max: 70 }}
                 />
               </Tooltip>
             </Grid>

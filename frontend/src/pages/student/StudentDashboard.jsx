@@ -120,10 +120,8 @@ export default function StudentDashboard() {
   useEffect(() => {
     loadDashboardData();
     window.addEventListener('focus', loadDashboardData);
-    const unsubscribe = subscribeToDataSync((event) => {
-      if (event.type === DATA_SYNC_EVENTS.RESULT_PUBLISHED || event.type === DATA_SYNC_EVENTS.ATTENDANCE_UPDATED) {
-        loadDashboardData();
-      }
+    const unsubscribe = subscribeToDataSync(() => {
+      loadDashboardData();
     });
     return () => {
       window.removeEventListener('focus', loadDashboardData);
@@ -425,7 +423,7 @@ export default function StudentDashboard() {
                 { icon: '💳', label: 'Pay Fees', path: '/student/fees', color: COLORS.accent, badge: pendingFees.length },
                 { icon: '🗓️', label: 'Exam Schedule', path: '/student/exams', color: COLORS.primary },
                 { icon: '🤖', label: 'AI Study Plan', path: '/student/study-plan', color: COLORS.excellent },
-                { icon: '💬', label: 'CampusMate Chat', path: '/chatbot', color: '#7c3aed' },
+                { icon: '💬', label: 'Grok AI Chat', path: '/chatbot', color: '#7c3aed' },
               ].map((a, i) => (
                 <Box
                   key={a.label}

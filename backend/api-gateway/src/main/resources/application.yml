@@ -9,10 +9,8 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins:
-              - "http://localhost:3000"
-              - "http://localhost:4200"
-              - "http://127.0.0.1:3000"
+            allowedOriginPatterns:
+              - "*"
             allowedMethods:
               - GET
               - POST
@@ -29,47 +27,123 @@ spring:
           enabled: true
           lowerCaseServiceId: true
       routes:
-        # Auth & Users Route
+        # Auth & Users Route (/api/...)
         - id: auth-service-route
           uri: lb://auth-service
           predicates:
             - Path=/api/auth/**, /api/users/**, /api/registrations/**
 
-        # Academic Services Route
+        # Academic Services Route (/api/...)
         - id: academic-service-route
           uri: lb://academic-service
           predicates:
             - Path=/api/courses/**, /api/attendance/**, /api/timetable/**, /api/timetables/**, /api/schedule/**, /api/faculty-schedules/**, /api/faculty-assignments/**, /api/student-services/**, /api/leaves/**, /api/certificates/**, /api/grievances/**, /api/mentoring/**, /api/surveys/**, /api/library/**, /api/placements/**, /api/projects/**, /api/campus-services/**, /api/warnings/**, /api/department-events/**
 
-        # Assessment Services Route
+        # Assessment Services Route (/api/...)
         - id: assessment-service-route
           uri: lb://assessment-service
           predicates:
             - Path=/api/exams/**, /api/results/**, /api/cgpa/**, /api/analytics/**, /api/academic-records/**
 
-        # Finance Services Route
+        # Finance Services Route (/api/...)
         - id: finance-service-route
           uri: lb://finance-service
           predicates:
             - Path=/api/fees/**, /api/payments/**, /api/payroll/**
 
-        # Campus AI & Notifications Route
+        # Campus AI & Notifications Route (/api/...)
         - id: campus-ai-service-route
           uri: lb://campus-ai-service
           predicates:
             - Path=/api/chatbot/**, /api/announcements/**, /api/notifications/**, /api/ai/**
 
+        # Direct Routes (Testing Convenience: auto-prefixes /api if omitted)
+        - id: auth-service-direct-route
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**, /users/**, /registrations/**
+          filters:
+            - PrefixPath=/api
+
+        - id: academic-service-direct-route
+          uri: lb://academic-service
+          predicates:
+            - Path=/courses/**, /attendance/**, /timetable/**, /timetables/**, /schedule/**, /faculty-schedules/**, /faculty-assignments/**, /student-services/**, /leaves/**, /certificates/**, /grievances/**, /mentoring/**, /surveys/**, /library/**, /placements/**, /projects/**, /campus-services/**, /warnings/**, /department-events/**
+          filters:
+            - PrefixPath=/api
+
+        - id: assessment-service-direct-route
+          uri: lb://assessment-service
+          predicates:
+            - Path=/exams/**, /results/**, /cgpa/**, /analytics/**, /academic-records/**
+          filters:
+            - PrefixPath=/api
+
+        - id: finance-service-direct-route
+          uri: lb://finance-service
+          predicates:
+            - Path=/fees/**, /payments/**, /payroll/**
+          filters:
+            - PrefixPath=/api
+
+        - id: campus-ai-service-direct-route
+          uri: lb://campus-ai-service
+          predicates:
+            - Path=/chatbot/**, /announcements/**, /notifications/**, /ai/**
+          filters:
+            - PrefixPath=/api
+
+        # Microservice Health & Actuator Inspection via Gateway
+        - id: auth-service-actuator
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/actuator/auth/**
+          filters:
+            - RewritePath=/api/actuator/auth/(?<remaining>.*), /api/actuator/${remaining}
+
+        - id: academic-service-actuator
+          uri: lb://academic-service
+          predicates:
+            - Path=/api/actuator/academic/**
+          filters:
+            - RewritePath=/api/actuator/academic/(?<remaining>.*), /api/actuator/${remaining}
+
+        - id: assessment-service-actuator
+          uri: lb://assessment-service
+          predicates:
+            - Path=/api/actuator/assessment/**
+          filters:
+            - RewritePath=/api/actuator/assessment/(?<remaining>.*), /api/actuator/${remaining}
+
+        - id: finance-service-actuator
+          uri: lb://finance-service
+          predicates:
+            - Path=/api/actuator/finance/**
+          filters:
+            - RewritePath=/api/actuator/finance/(?<remaining>.*), /api/actuator/${remaining}
+
+        - id: campus-ai-service-actuator
+          uri: lb://campus-ai-service
+          predicates:
+            - Path=/api/actuator/ai/**
+          filters:
+            - RewritePath=/api/actuator/ai/(?<remaining>.*), /api/actuator/${remaining}
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
     ip-address: 127.0.0.1
     hostname: localhost
 
 management:
+  endpoint:
+    gateway:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: "*"

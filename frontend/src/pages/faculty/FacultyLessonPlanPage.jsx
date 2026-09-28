@@ -15,6 +15,7 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { COLORS } from '../../theme/theme';
 import { toast } from 'react-toastify';
+import { courseAPI } from '../../services/api';
 
 export default function FacultyLessonPlanPage() {
   const location = useLocation();
@@ -32,6 +33,18 @@ export default function FacultyLessonPlanPage() {
   }, [location.search]);
 
   const [selectedCourse, setSelectedCourse] = useState('CS401');
+  const [courses, setCourses] = useState([]);
+
+  useEffect(() => {
+    courseAPI.getAll().then(res => {
+      const list = res.data?.data || [];
+      setCourses(list);
+      if (list.length > 0) {
+        setSelectedCourse(list[0].courseCode || 'CS401');
+      }
+    }).catch(() => {});
+  }, []);
+
   const [manualForm, setManualForm] = useState({
     unit: 'Unit 1: Process Management & CPU Scheduling',
     topic: '',

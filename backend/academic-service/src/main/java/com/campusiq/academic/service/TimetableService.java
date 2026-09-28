@@ -34,6 +34,25 @@ public class TimetableService {
     }
 
     @Transactional(readOnly = true)
+    public List<TimetableSlot> getStudentTimetable(Long studentId) {
+        User student = userRepository.findById(studentId).orElse(null);
+        if (student != null && student.getSection() != null && !student.getSection().isBlank()) {
+            List<TimetableSlot> sectionSlots = timetableRepository.findBySectionName(student.getSection());
+            if (!sectionSlots.isEmpty()) {
+                return sectionSlots;
+            }
+        }
+        List<TimetableSlot> all = timetableRepository.findAll();
+        if (student != null && student.getDepartment() != null && !student.getDepartment().isBlank()) {
+            List<TimetableSlot> deptSlots = all.stream()
+                    .filter(s -> s.getCourse() != null && student.getDepartment().equalsIgnoreCase(s.getCourse().getDepartment()))
+                    .toList();
+            if (!deptSlots.isEmpty()) return deptSlots;
+        }
+        return all;
+    }
+
+    @Transactional(readOnly = true)
     public List<TimetableSlot> getFacultyDayTimetable(Long facultyId, String dayOfWeek) {
         return timetableRepository.findByFacultyIdAndDayOfWeek(facultyId, dayOfWeek.toUpperCase());
     }

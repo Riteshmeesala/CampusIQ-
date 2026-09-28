@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { scheduleAPI, examAPI, userAPI, courseAPI, timetableAPI } from '../../services/api';
+import { subscribeToDataSync } from '../../services/dataSync';
 import PageHeader from '../../components/shared/PageHeader';
 import StatCard from '../../components/shared/StatCard';
 import { COLORS } from '../../theme/theme';
@@ -37,7 +38,7 @@ export default function FacultyDashboard() {
   const [timetable, setTimetable] = useState([]);
   const [loading,   setLoading]   = useState(true);
 
-  useEffect(() => {
+  const loadFacultyData = () => {
     Promise.allSettled([
       scheduleAPI.getMySchedules(),
       examAPI.getUpcoming(),
@@ -52,6 +53,18 @@ export default function FacultyDashboard() {
       if (tt.status === 'fulfilled')  setTimetable(tt.value.data.data || []);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    loadFacultyData();
+    window.addEventListener('focus', loadFacultyData);
+    const unsub = subscribeToDataSync(() => {
+      loadFacultyData();
+    });
+    return () => {
+      window.removeEventListener('focus', loadFacultyData);
+      unsub();
+    };
   }, []);
 
   const currentDay = useMemo(() => {

@@ -51,6 +51,62 @@ export default function StudentQRRegistrationPage() {
   const [importReport,    setImportReport]    = useState(null);
   const [reportOpen,      setReportOpen]      = useState(false);
 
+  // Manual Student Registration State
+  const [manualForm,      setManualForm]      = useState({
+    name: '',
+    enrollmentNumber: '',
+    email: '',
+    department: 'Computer Science',
+    semester: '1-1',
+    section: 'Section A',
+    phoneNumber: '',
+    username: '',
+    password: ''
+  });
+  const [manualSaving,    setManualSaving]    = useState(false);
+
+  const handleManualSubmit = async (e) => {
+    e?.preventDefault();
+    if (!manualForm.name.trim() || !manualForm.enrollmentNumber.trim() || !manualForm.email.trim()) {
+      toast.warning('Please enter Student Name, Enrollment Number, and Email');
+      return;
+    }
+    setManualSaving(true);
+    try {
+      const roll = manualForm.enrollmentNumber.trim().toUpperCase();
+      const studentPayload = {
+        name: manualForm.name.trim(),
+        enrollmentNumber: roll,
+        email: manualForm.email.trim(),
+        department: manualForm.department,
+        semester: manualForm.semester,
+        section: manualForm.section,
+        phoneNumber: manualForm.phoneNumber.trim() || '9876543210',
+        username: manualForm.username.trim() || roll,
+        password: manualForm.password.trim() || `Student@${roll}`,
+      };
+      
+      await registrationAPI.importExcelStudents({ students: [studentPayload] });
+      toast.success(`✅ Student ${roll} registered successfully into the database!`);
+      setManualForm({
+        name: '',
+        enrollmentNumber: '',
+        email: '',
+        department: 'Computer Science',
+        semester: '1-1',
+        section: 'Section A',
+        phoneNumber: '',
+        username: '',
+        password: ''
+      });
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to register student manually');
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -353,7 +409,8 @@ export default function StudentQRRegistrationPage() {
           >
             <Tab icon={<QrCode2 sx={{ fontSize: 20 }} />} iconPosition="start" label="1. QR Code Generator" />
             <Tab icon={<School sx={{ fontSize: 20 }} />} iconPosition="start" label={`2. Registered Students (${registrations.length})`} />
-            <Tab icon={<FileUpload sx={{ fontSize: 20 }} />} iconPosition="start" label="3. Import from Excel" />
+            <Tab icon={<Person sx={{ fontSize: 20 }} />} iconPosition="start" label="3. Enter Student Manually" />
+            <Tab icon={<FileUpload sx={{ fontSize: 20 }} />} iconPosition="start" label="4. Import from Excel" />
           </Tabs>
         </Box>
 
@@ -603,8 +660,148 @@ export default function StudentQRRegistrationPage() {
           </CardContent>
         )}
 
-        {/* TAB 2: IMPORT STUDENTS FROM EXCEL */}
+        {/* TAB 2: ENTER STUDENT MANUALLY */}
         {tabIndex === 2 && (
+          <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: COLORS.textPrimary, mb: 0.5 }}>
+                ✍️ Enter Student Details Manually
+              </Typography>
+              <Typography variant="body2" sx={{ color: COLORS.textMuted }}>
+                Directly register an individual student into the institution database without requiring mobile QR code scanning or Excel spreadsheet uploads.
+              </Typography>
+            </Box>
+
+            <Paper sx={{ p: 3.5, borderRadius: 3, border: `1px solid ${COLORS.borderLight}`, bgcolor: '#ffffff' }}>
+              <Grid container spacing={2.5}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Student Full Name"
+                    placeholder="e.g. Rahul Sharma"
+                    value={manualForm.name}
+                    onChange={e => setManualForm(p => ({ ...p, name: e.target.value }))}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Enrollment / Roll Number"
+                    placeholder="e.g. 24CS005"
+                    value={manualForm.enrollmentNumber}
+                    onChange={e => setManualForm(p => ({ ...p, enrollmentNumber: e.target.value }))}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    type="email"
+                    label="Official Email Address"
+                    placeholder="e.g. rahul.sharma@campusiq.edu"
+                    value={manualForm.email}
+                    onChange={e => setManualForm(p => ({ ...p, email: e.target.value }))}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Contact Phone Number"
+                    placeholder="e.g. 9876543210"
+                    value={manualForm.phoneNumber}
+                    onChange={e => setManualForm(p => ({ ...p, phoneNumber: e.target.value }))}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Department"
+                    value={manualForm.department}
+                    onChange={e => setManualForm(p => ({ ...p, department: e.target.value }))}
+                  >
+                    {DEPARTMENTS.map(d => (
+                      <MenuItem key={d} value={d}>{d}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Current Semester"
+                    value={manualForm.semester}
+                    onChange={e => setManualForm(p => ({ ...p, semester: e.target.value }))}
+                  >
+                    {SEMESTERS.map(s => (
+                      <MenuItem key={s} value={s}>{s}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Assigned Section"
+                    value={manualForm.section}
+                    onChange={e => setManualForm(p => ({ ...p, section: e.target.value }))}
+                  >
+                    <MenuItem value="Section A">Section A</MenuItem>
+                    <MenuItem value="Section B">Section B</MenuItem>
+                    <MenuItem value="Section C">Section C</MenuItem>
+                    <MenuItem value="Section D">Section D</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Portal Username (Optional)"
+                    placeholder="Leave blank to use Roll Number"
+                    value={manualForm.username}
+                    onChange={e => setManualForm(p => ({ ...p, username: e.target.value }))}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="password"
+                    label="Initial Password (Optional)"
+                    placeholder="Default: Student@{RollNumber}"
+                    value={manualForm.password}
+                    onChange={e => setManualForm(p => ({ ...p, password: e.target.value }))}
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 3.5, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setManualForm({
+                    name: '', enrollmentNumber: '', email: '', department: 'Computer Science',
+                    semester: '1-1', section: 'Section A', phoneNumber: '', username: '', password: ''
+                  })}
+                  sx={{ borderRadius: 2.5, fontWeight: 700 }}
+                >
+                  Clear Fields
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={manualSaving}
+                  onClick={handleManualSubmit}
+                  startIcon={manualSaving ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
+                  sx={{ background: COLORS.gradBlue, borderRadius: 2.5, px: 3.5, fontWeight: 700 }}
+                >
+                  {manualSaving ? 'Saving to Database...' : 'Register Student Now'}
+                </Button>
+              </Box>
+            </Paper>
+          </CardContent>
+        )}
+
+        {/* TAB 3: IMPORT STUDENTS FROM EXCEL */}
+        {tabIndex === 3 && (
           <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
             <Box sx={{ mb: 3 }}>
               <Typography variant="h6" sx={{ fontWeight: 800, color: COLORS.textPrimary, mb: 0.5 }}>
