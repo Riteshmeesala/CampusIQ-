@@ -1,44 +1,50 @@
-# Multi-stage Dockerfile for CampusIQ+ Backend on Render
-# Stage 1: Build JAR artifacts using Maven
+# ==========================================
+# CampusIQ+ API Gateway Microservice
+# Multi-stage Dockerfile for Render Deployment
+# Build Context: Repository Root (.)
+# ==========================================
+
+# ── Stage 1: Build Stage ──
 FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
 WORKDIR /workspace
 
-# Copy POMs and common-lib for dependency caching
+# Copy parent POM for dependency & plugin management
 COPY backend/pom.xml backend/pom.xml
+
+# Copy common-lib (required by multi-module reactor)
 COPY backend/common-lib/pom.xml backend/common-lib/pom.xml
-COPY backend/eureka-server/pom.xml backend/eureka-server/pom.xml
+COPY backend/common-lib/src backend/common-lib/src
+
+# Copy api-gateway POM and source code
 COPY backend/api-gateway/pom.xml backend/api-gateway/pom.xml
-COPY backend/auth-service/pom.xml backend/auth-service/pom.xml
-COPY backend/academic-service/pom.xml backend/academic-service/pom.xml
-COPY backend/assessment-service/pom.xml backend/assessment-service/pom.xml
-COPY backend/finance-service/pom.xml backend/finance-service/pom.xml
-COPY backend/campus-ai-service/pom.xml backend/campus-ai-service/pom.xml
+COPY backend/api-gateway/src backend/api-gateway/src
 
-# Copy full source tree and build packages
-COPY backend /workspace/backend
-RUN cd /workspace/backend && mvn clean package -DskipTests
+# Package API Gateway using Maven multi-module dependency resolution
+RUN mvn -f backend/pom.xml -pl api-gateway -am clean package -DskipTests
 
-# Stage 2: Minimal JRE Runtime
+# ── Stage 2: Minimal Runtime Stage ──
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-# Install bash/curl for health checks
-RUN apk add --no-cache curl bash
+# Install curl for Render health check probing
+RUN apk add --no-cache curl
 
-# Copy built JARs from builder
-COPY --from=builder /workspace/backend/eureka-server/target/*.jar /app/eureka-server.jar
-COPY --from=builder /workspace/backend/api-gateway/target/*.jar /app/api-gateway.jar
-COPY --from=builder /workspace/backend/auth-service/target/*.jar /app/auth-service.jar
-COPY --from=builder /workspace/backend/academic-service/target/*.jar /app/academic-service.jar
-COPY --from=builder /workspace/backend/assessment-service/target/*.jar /app/assessment-service.jar
-COPY --from=builder /workspace/backend/finance-service/target/*.jar /app/finance-service.jar
-COPY --from=builder /workspace/backend/campus-ai-service/target/*.jar /app/campus-ai-service.jar
+# Create non-root system user for production security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy entrypoint runner
-COPY backend/start-production.sh /app/start-production.sh
-RUN chmod +x /app/start-production.sh
+# Copy compiled executable Spring Boot JAR
+COPY --from=builder /workspace/backend/api-gateway/target/api-gateway-*.jar app.jar
 
-# Render dynamically allocates $PORT (default 8080)
+# Set file ownership to non-root user
+RUN chown appuser:appgroup /app/app.jar
+
+USER appuser
+
+# Render dynamically passes the PORT environment variable (default: 8080)
+ENV PORT=8080
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/sh", "/app/start-production.sh"]
+# Production-safe JVM settings tailored for a 512MB RAM container:
+# - Max heap ~65% (leaving head room for Netty native memory & Metaspace)
+# - Container-aware memory ergonomics & G1 Garbage Collector
+ENTRYPOINT ["sh", "-c", "java -XX:InitialRAMPercentage=25.0 -XX:MaxRAMPercentage=65.0 -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Dserver.port=${PORT} -jar app.jar"]
