@@ -8,18 +8,24 @@
 FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
 WORKDIR /workspace
 
-# Copy parent POM for dependency & plugin management
+# Copy parent POM
 COPY backend/pom.xml backend/pom.xml
 
-# Copy common-lib (required by multi-module reactor)
+# Copy all submodule POMs so the Maven reactor can resolve all declared modules
 COPY backend/common-lib/pom.xml backend/common-lib/pom.xml
-COPY backend/common-lib/src backend/common-lib/src
-
-# Copy api-gateway POM and source code
+COPY backend/eureka-server/pom.xml backend/eureka-server/pom.xml
 COPY backend/api-gateway/pom.xml backend/api-gateway/pom.xml
+COPY backend/auth-service/pom.xml backend/auth-service/pom.xml
+COPY backend/academic-service/pom.xml backend/academic-service/pom.xml
+COPY backend/assessment-service/pom.xml backend/assessment-service/pom.xml
+COPY backend/finance-service/pom.xml backend/finance-service/pom.xml
+COPY backend/campus-ai-service/pom.xml backend/campus-ai-service/pom.xml
+
+# Copy source code ONLY for common-lib and api-gateway
+COPY backend/common-lib/src backend/common-lib/src
 COPY backend/api-gateway/src backend/api-gateway/src
 
-# Package API Gateway using Maven multi-module dependency resolution
+# Package API Gateway and required dependencies (skips all other services)
 RUN mvn -f backend/pom.xml -pl api-gateway -am clean package -DskipTests
 
 # ── Stage 2: Minimal Runtime Stage ──
@@ -45,6 +51,6 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Production-safe JVM settings tailored for a 512MB RAM container:
-# - Max heap ~65% (leaving head room for Netty native memory & Metaspace)
+# - Max heap 65% (~330MB), leaving headroom for Netty direct memory & Metaspace
 # - Container-aware memory ergonomics & G1 Garbage Collector
 ENTRYPOINT ["sh", "-c", "java -XX:InitialRAMPercentage=25.0 -XX:MaxRAMPercentage=65.0 -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Dserver.port=${PORT} -jar app.jar"]
