@@ -43,7 +43,7 @@ const ProtectedRoute = ({ children, roles }) => {
   const location = useLocation();
 
   // Still loading auth state from localStorage
-  if (loading) return <Spinner msg="Loading CampusIQ+…" />;
+  if (loading) return <Spinner msg="Loading VVITU ERP…" />;
 
   // Not authenticated at all
   if (!isAuthenticated) {

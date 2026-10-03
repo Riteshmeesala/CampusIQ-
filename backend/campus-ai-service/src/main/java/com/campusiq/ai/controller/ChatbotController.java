@@ -78,7 +78,8 @@ public class ChatbotController {
                 user,
                 request.getMessage(),
                 request.getHistory(),
-                request.getSessionId()
+                request.getSessionId(),
+                request.getMode()
         );
 
         Map<String, Object> responseData = new LinkedHashMap<>();
@@ -90,6 +91,7 @@ public class ChatbotController {
         responseData.put("isNewSession", aiResult.get("isNewSession"));
         responseData.put("user", aiResult.get("user"));
         responseData.put("role", aiResult.get("role"));
+        responseData.put("mode", aiResult.get("mode"));
         responseData.put("aiPowered", aiResult.get("aiPowered"));
         responseData.put("timestamp", aiResult.get("timestamp"));
 

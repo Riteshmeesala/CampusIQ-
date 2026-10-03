@@ -35,7 +35,6 @@ import AnnouncementsPage  from './pages/announcements/AnnouncementsPage';
 import PublishCGPAPage from './pages/admin/PublishCGPAPage';
 import StudentAcademicRecordsPage from './pages/admin/StudentAcademicRecordsPage';
 import FacultySubjectAssignmentPage from './pages/admin/FacultySubjectAssignmentPage';
-import StudentQRRegistrationPage from './pages/admin/StudentQRRegistrationPage';
 import PublicStudentRegistrationPage from './pages/auth/PublicStudentRegistrationPage';
 import PublishResultPage from './pages/results/PublishResultPage';
 import BroadcastEmailPage from './pages/admin/BroadcastEmailPage';
@@ -48,6 +47,7 @@ import StudentApprovalsPage from './pages/student/StudentApprovalsPage';
 import StudentAchievementsPage from './pages/student/StudentAchievementsPage';
 import StudentInternshipsPage from './pages/student/StudentInternshipsPage';
 import StudentExamNotificationsPage from './pages/student/StudentExamNotificationsPage';
+import StudentOnlineTestPage from './pages/student/StudentOnlineTestPage';
 import StudentExamRoutinePage from './pages/student/StudentExamRoutinePage';
 import StudentExamResultsPage from './pages/student/StudentExamResultsPage';
 import StudentMonthlyAttendancePage from './pages/student/StudentMonthlyAttendancePage';
@@ -113,8 +113,8 @@ export default function App() {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<PublicStudentRegistrationPage />} />
         <Route path="/register/student" element={<PublicStudentRegistrationPage />} />
-        <Route path="/scan-register" element={<PublicStudentRegistrationPage />} />
         <Route path="/"      element={<RoleHome />} />
 
         {/* Short aliases */}
@@ -128,6 +128,8 @@ export default function App() {
             {/* ── DEDICATED INDIVIDUAL STUDENT MODULE ROUTES ── */}
             <Route path="/student/dashboard"
               element={<ProtectedRoute roles={['STUDENT']}><StudentDashboard /></ProtectedRoute>} />
+            <Route path="/student/test"
+              element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><StudentOnlineTestPage /></ProtectedRoute>} />
             <Route path="/student/calendar"
               element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><StudentCalendarPage /></ProtectedRoute>} />
             <Route path="/student/class-routine"
@@ -175,7 +177,7 @@ export default function App() {
             <Route path="/student/notices"
               element={<ProtectedRoute roles={['STUDENT','FACULTY','ADMIN']}><StudentNoticesPage /></ProtectedRoute>} />
             <Route path="/student/fee-dues"
-              element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><FeePage /></ProtectedRoute>} />
+              element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><StudentFeeDuesPage /></ProtectedRoute>} />
             <Route path="/student/fees"
               element={<ProtectedRoute roles={['STUDENT','ADMIN','FACULTY']}><FeePage /></ProtectedRoute>} />
             <Route path="/student/assignments"
@@ -225,6 +227,7 @@ export default function App() {
             <Route path="/student/profile"
               element={<ProtectedRoute roles={['STUDENT']}><StudentDetails /></ProtectedRoute>} />
             <Route path="/chatbot" element={<ChatbotPage />} />
+            <Route path="/student/chatbot" element={<ChatbotPage />} />
 
             {/* ── FACULTY ── */}
             <Route path="/faculty/dashboard"
@@ -301,10 +304,6 @@ export default function App() {
               element={<ProtectedRoute roles={['ADMIN']}><FacultySubjectAssignmentPage /></ProtectedRoute>} />
             <Route path="/admin/faculty/:id"
               element={<ProtectedRoute roles={['ADMIN']}><FacultyDetails /></ProtectedRoute>} />
-            <Route path="/admin/student-scanner"
-              element={<ProtectedRoute roles={['ADMIN']}><StudentQRRegistrationPage /></ProtectedRoute>} />
-            <Route path="/admin/excel-import"
-              element={<ProtectedRoute roles={['ADMIN']}><StudentQRRegistrationPage /></ProtectedRoute>} />
             <Route path="/admin/publish-cgpa" 
               element={<ProtectedRoute roles={['ADMIN']}><PublishCGPAPage /></ProtectedRoute> }/> 
             <Route path="/admin/publish-results"

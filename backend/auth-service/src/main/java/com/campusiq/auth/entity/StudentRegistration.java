@@ -57,6 +57,51 @@ public class StudentRegistration {
     @Column(length = 20)
     private String status = "REGISTERED"; // REGISTERED, IMPORTED, APPROVED
 
+    @Column(name = "otp_code", length = 10)
+    private String otpCode;
+
+    @Column(name = "otp_expiry")
+    private LocalDateTime otpExpiry;
+
+    @Column(name = "otp_attempts")
+    private Integer otpAttempts = 0;
+
+    @Column(name = "resend_count")
+    private Integer resendCount = 0;
+
+    @Column(name = "last_resend_at")
+    private LocalDateTime lastResendAt;
+
+    @Column(name = "batch_year", length = 30)
+    private String batchYear;
+
+    @Column(name = "date_of_birth", length = 30)
+    private String dateOfBirth;
+
+    @Column(name = "gender", length = 20)
+    private String gender;
+
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
+
+    @Column(name = "emergency_contact", length = 50)
+    private String emergencyContact;
+
+    @Column(name = "guardian_name", length = 100)
+    private String guardianName;
+
+    @Column(name = "guardian_phone", length = 20)
+    private String guardianPhone;
+
+    @Column(name = "guardian_email", length = 150)
+    private String guardianEmail;
+
+    @Column(name = "guardian_relation", length = 50)
+    private String guardianRelation;
+
+    @Column(name = "admission_quota", length = 50)
+    private String admissionQuota;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -93,6 +138,39 @@ public class StudentRegistration {
     public void setPassword(String password) { this.password = password; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getOtpCode() { return otpCode; }
+    public void setOtpCode(String otpCode) { this.otpCode = otpCode; }
+    public LocalDateTime getOtpExpiry() { return otpExpiry; }
+    public void setOtpExpiry(LocalDateTime otpExpiry) { this.otpExpiry = otpExpiry; }
+    public Integer getOtpAttempts() { return otpAttempts != null ? otpAttempts : 0; }
+    public void setOtpAttempts(Integer otpAttempts) { this.otpAttempts = otpAttempts; }
+    public Integer getResendCount() { return resendCount != null ? resendCount : 0; }
+    public void setResendCount(Integer resendCount) { this.resendCount = resendCount; }
+    public LocalDateTime getLastResendAt() { return lastResendAt; }
+    public void setLastResendAt(LocalDateTime lastResendAt) { this.lastResendAt = lastResendAt; }
+
+    public String getBatchYear() { return batchYear; }
+    public void setBatchYear(String batchYear) { this.batchYear = batchYear; }
+    public String getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getEmergencyContact() { return emergencyContact; }
+    public void setEmergencyContact(String emergencyContact) { this.emergencyContact = emergencyContact; }
+    public String getGuardianName() { return guardianName; }
+    public void setGuardianName(String guardianName) { this.guardianName = guardianName; }
+    public String getGuardianPhone() { return guardianPhone; }
+    public void setGuardianPhone(String guardianPhone) { this.guardianPhone = guardianPhone; }
+    public String getGuardianEmail() { return guardianEmail; }
+    public void setGuardianEmail(String guardianEmail) { this.guardianEmail = guardianEmail; }
+    public String getGuardianRelation() { return guardianRelation; }
+    public void setGuardianRelation(String guardianRelation) { this.guardianRelation = guardianRelation; }
+    public String getAdmissionQuota() { return admissionQuota; }
+    public void setAdmissionQuota(String admissionQuota) { this.admissionQuota = admissionQuota; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -117,6 +195,21 @@ public class StudentRegistration {
         public Builder username(String username) { reg.setUsername(username); return this; }
         public Builder password(String password) { reg.setPassword(password); return this; }
         public Builder status(String status) { reg.setStatus(status); return this; }
+        public Builder otpCode(String otpCode) { reg.setOtpCode(otpCode); return this; }
+        public Builder otpExpiry(LocalDateTime otpExpiry) { reg.setOtpExpiry(otpExpiry); return this; }
+        public Builder otpAttempts(Integer attempts) { reg.setOtpAttempts(attempts); return this; }
+        public Builder resendCount(Integer count) { reg.setResendCount(count); return this; }
+        public Builder lastResendAt(LocalDateTime at) { reg.setLastResendAt(at); return this; }
+        public Builder batchYear(String batchYear) { reg.setBatchYear(batchYear); return this; }
+        public Builder dateOfBirth(String dob) { reg.setDateOfBirth(dob); return this; }
+        public Builder gender(String gender) { reg.setGender(gender); return this; }
+        public Builder address(String addr) { reg.setAddress(addr); return this; }
+        public Builder emergencyContact(String ec) { reg.setEmergencyContact(ec); return this; }
+        public Builder guardianName(String gn) { reg.setGuardianName(gn); return this; }
+        public Builder guardianPhone(String gp) { reg.setGuardianPhone(gp); return this; }
+        public Builder guardianEmail(String ge) { reg.setGuardianEmail(ge); return this; }
+        public Builder guardianRelation(String gr) { reg.setGuardianRelation(gr); return this; }
+        public Builder admissionQuota(String aq) { reg.setAdmissionQuota(aq); return this; }
         public StudentRegistration build() { return reg; }
     }
 }

@@ -150,7 +150,6 @@ export default function AdminDashboard() {
               <Typography variant="h6" fontWeight={700} mb={2} sx={{ letterSpacing: '-0.01em' }}>Quick Actions</Typography>
               {[
                 { label:'Manage Students', path:'/admin/students', color: COLORS.secondary, icon: '👥' },
-                { label:'QR Registration & Excel Import', path:'/admin/student-scanner', color: COLORS.primary, icon: '📱' },
                 { label:'Academic & Marks Manager', path:'/admin/academic-records', color: COLORS.primary, icon: '📊' },
                 { label:'Manage Faculty',  path:'/admin/faculty',  color: COLORS.primary, icon: '👨‍🏫' },
                 { label:'Faculty Subject Allocation', path:'/admin/faculty-assignments', color: COLORS.secondary, icon: '📚' },

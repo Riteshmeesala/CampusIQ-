@@ -43,12 +43,13 @@ public class AIChatbotService {
     // CHAT EXECUTION (ROLE-AWARE + SESSION-AWARE)
     // ==========================================
     @Transactional
-    public Map<String, Object> chat(User user, String message, List<Map<String, String>> history, String requestedSessionId) {
+    public Map<String, Object> chat(User user, String message, List<Map<String, String>> history, String requestedSessionId, String mode) {
         if (message == null || message.isBlank()) message = "hello";
 
+        String activeMode = (mode != null && !mode.isBlank()) ? mode.toUpperCase().trim() : "FREE";
         Role userRole = user.getRole() != null ? user.getRole() : Role.STUDENT;
-        log.info("[Grok AI] Chat request: user={} role={} session={} msg={}",
-                user.getUsername(), userRole, requestedSessionId, message);
+        log.info("[Campus AI] Chat request: user={} role={} mode={} session={} msg={}",
+                user.getUsername(), userRole, activeMode, requestedSessionId, message);
 
         // 1. Resolve or create ChatSession
         String activeSessionId = requestedSessionId;
@@ -75,9 +76,11 @@ public class AIChatbotService {
             chatSession = chatSessionRepository.save(chatSession);
         }
 
-        // 2. Build Stakeholder Context & System Prompt
-        String dbContext = buildDatabaseContext(user, message);
-        String systemPrompt = buildSystemPrompt(user, dbContext);
+        // 2. Build Stakeholder Context & System Prompt (Free mode does not forcibly bind to campus)
+        String dbContext = ("CAMPUS".equals(activeMode) || isCampusQuery(message))
+                ? buildDatabaseContext(user, message)
+                : null;
+        String systemPrompt = buildSystemPrompt(user, dbContext, activeMode);
 
         String response = null;
         boolean aiPowered = false;
@@ -90,7 +93,7 @@ public class AIChatbotService {
                     aiPowered = true;
                 }
             } catch (Exception e) {
-                log.warn("[Grok AI] Service call exception: {}", e.getMessage());
+                log.warn("[Campus AI] Service call exception: {}", e.getMessage());
             }
         }
 
@@ -119,7 +122,7 @@ public class AIChatbotService {
             log.warn("Could not persist chat message: {}", e.getMessage());
         }
 
-        List<String> suggestions = generateSuggestions(user, message);
+        List<String> suggestions = generateSuggestions(user, message, activeMode);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("response", response);
@@ -130,6 +133,7 @@ public class AIChatbotService {
         result.put("isNewSession", isNewSession);
         result.put("user", user.getName());
         result.put("role", userRole.name());
+        result.put("mode", activeMode);
         result.put("aiPowered", aiPowered);
         result.put("timestamp", LocalDateTime.now().toString());
 
@@ -137,8 +141,14 @@ public class AIChatbotService {
     }
 
     // Overload for backward compatibility
+    @Transactional
+    public Map<String, Object> chat(User user, String message, List<Map<String, String>> history, String requestedSessionId) {
+        return chat(user, message, history, requestedSessionId, "FREE");
+    }
+
+    // Overload for backward compatibility
     public Map<String, Object> chat(User user, String message, List<Map<String, String>> history) {
-        return chat(user, message, history, null);
+        return chat(user, message, history, null, "FREE");
     }
 
     // ==========================================
@@ -339,7 +349,7 @@ public class AIChatbotService {
             if (!fees.isEmpty()) {
                 sb.append("Fees:\n");
                 for (Map<String, Object> f : fees) {
-                    sb.append(String.format(" - %s: ₹%s (Status: %s, Due: %s)\n",
+                    sb.append(String.format(" - %s: INR %s (Status: %s, Due: %s)\n",
                             f.get("fee_type"), f.get("amount"), f.get("status"), f.get("due_date")));
                 }
             }
@@ -404,41 +414,76 @@ public class AIChatbotService {
     }
 
     // ==========================================
-    // STAKEHOLDER SYSTEM PROMPTS
+    // MULTI-MODE SYSTEM PROMPTS (FREE, CODING, LIFESKILLS, CAMPUS)
     // ==========================================
-    private String buildSystemPrompt(User user, String dbContext) {
-        Role role = user.getRole() != null ? user.getRole() : Role.STUDENT;
+    private String buildSystemPrompt(User user, String dbContext, String mode) {
+        String activeMode = (mode != null && !mode.isBlank()) ? mode.toUpperCase().trim() : "FREE";
 
-        String rolePersona = switch (role) {
-            case STUDENT -> "You are Grok AI for CampusIQ+, acting as a dedicated Student Academic & Career Mentor. "
-                    + "Your focus is helping the student with lecture schedules, exam dates, attendance eligibility (>75% requirement), "
-                    + "fee invoices, CGPA improvement strategies, DSA/coding roadmaps, and campus services.";
-            case FACULTY -> "You are Grok AI for CampusIQ+, acting as a Faculty Teaching & Curriculum Assistant. "
-                    + "Your focus is assisting the professor with lecture planning, syllabus tracking, attendance reporting, "
-                    + "publishing internal & semester marks, generating quiz/exam questions, student mentoring, and research publications.";
-            case ADMIN -> "You are Grok AI for CampusIQ+, acting as an Executive Institutional & Governance Advisor. "
-                    + "Your focus is drafting formal university circulars/notices (holidays, exams, fee clearances), "
-                    + "analyzing student enrollment and fee collection statistics, faculty workload balance, and compliance audits.";
-        };
+        StringBuilder sb = new StringBuilder();
 
-        return rolePersona + "\n"
-                + "User: " + user.getName() + " | Role: " + role.name() + "\n"
-                + "Department: " + (user.getDepartment() != null ? user.getDepartment() : "Computer Science & Engineering") + "\n"
-                + "Current Date: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) + "\n\n"
-                + "DATABASE CONTEXT:\n" + (dbContext.isBlank() ? "No specific database records required for this query." : dbContext) + "\n\n"
-                + "SYSTEMATIC OUTPUT ARCHITECTURE (CHATGPT / GEMINI QUALITY):\n"
-                + "1. ### 🎯 Executive Summary\n"
-                + "   - Clear, direct, high-value summary in 1-2 sentences.\n"
-                + "2. ---\n"
-                + "3. ### 📋 Systematic Step-by-Step Breakdown\n"
-                + "   - Group into logical steps (#### Step 1: ..., #### Step 2: ...).\n"
-                + "   - Use clear bullet points with bold keywords.\n"
-                + "4. ---\n"
-                + "5. ### 📊 Specifications / Data Matrix (When Applicable)\n"
-                + "   - Use clean Markdown Tables (`| Parameter | Value | Status | Action |`).\n"
-                + "6. ---\n"
-                + "7. ### 💡 Strategic Next Steps & Pro Tips\n"
-                + "   - Provide concrete next actions and links/tabs to check in the CampusIQ+ portal.";
+        switch (activeMode) {
+            case "CODING" -> {
+                sb.append("You are CampusIQ AI in Expert Software Engineering & Coding Mode. ")
+                  .append("You are a world-class senior software engineer and computer science mentor like ChatGPT Plus. ")
+                  .append("Provide production-ready, clean, well-documented code with complete syntax, optimal time/space complexity analysis, edge case handling, and architectural best practices across all languages (Python, Java, C++, TypeScript, Rust, Go, SQL, etc.).\n");
+            }
+            case "LIFESKILLS" -> {
+                sb.append("You are CampusIQ AI in Life Skills & Personal Development Mode. ")
+                  .append("You are a compassionate, practical life coach, behavioral psychologist, and mentorship advisor like ChatGPT. ")
+                  .append("Help the user master essential life skills: emotional intelligence, active listening, public speaking, negotiation, building daily habits, overcoming procrastination & anxiety, self-discipline, time management, leadership, career transitions, and personal wellness. Provide actionable frameworks and real-world exercises.\n");
+            }
+            case "CAMPUS" -> {
+                Role role = user.getRole() != null ? user.getRole() : Role.STUDENT;
+                sb.append("You are CampusIQ AI in Campus & Academic Advisor Mode. ")
+                  .append("Help with college records, syllabus, semester timetables, attendance audits, fee dues, and campus operations.\n");
+                sb.append("User: ").append(user.getName()).append(" | Role: ").append(role.name());
+                if (user.getDepartment() != null) {
+                    sb.append(" | Department: ").append(user.getDepartment());
+                }
+                sb.append("\n");
+            }
+            default -> { // "FREE" / Universal Mode
+                sb.append("You are CampusIQ AI in Universal Free Mode — an open, highly versatile, unrestricted AI assistant designed like ChatGPT. ")
+                  .append("You can discuss, analyze, and assist with absolutely EVERYTHING without artificial boundaries: ")
+                  .append("coding & software engineering (any language/framework), life skills & personal growth, psychology, mental models, critical thinking, career transitions, science, mathematics, philosophy, creative writing, health & fitness, business, and everyday life.\n")
+                  .append("Adapt your tone and depth naturally to whatever topic the user brings up.\n");
+            }
+        }
+
+        if (dbContext != null && !dbContext.isBlank()) {
+            sb.append("\nCAMPUS DATA CONTEXT:\n").append(dbContext.trim()).append("\n");
+        }
+
+        sb.append("\nCORE INSTRUCTIONS:\n")
+          .append("1. Answer thoroughly, conversationally, and insightfully like ChatGPT.\n")
+          .append("2. When answering general queries (life skills, coding, philosophy, science, fitness), focus 100% on the user's inquiry. Do NOT forcibly inject campus attendance or student records unless the user asked about them.\n")
+          .append("3. For coding questions, provide complete, runnable code blocks with language tags, concise step-by-step walkthroughs, and time/space complexity.\n")
+          .append("4. For life skills & self-improvement questions, give clear psychological principles, practical frameworks, and real-life actionable exercises.\n")
+          .append("5. When asked about current political figures, ministers, or state heads in India, provide accurate current facts (e.g., Chief Minister of Andhra Pradesh is N. Chandrababu Naidu, Prime Minister is Narendra Modi, Chief Minister of Telangana is A. Revanth Reddy).\n")
+          .append("6. Use clean Markdown formatting: headings, bold accents, bullet lists, tables, and code snippets.\n");
+
+        return sb.toString();
+    }
+
+    private boolean isCampusQuery(String message) {
+        if (message == null || message.isBlank()) return false;
+        String lower = message.toLowerCase();
+        return lower.contains("attendance")
+                || lower.contains("fee")
+                || lower.contains("dues")
+                || lower.contains("exam")
+                || lower.contains("timetable")
+                || lower.contains("schedule")
+                || lower.contains("routine")
+                || lower.contains("course")
+                || lower.contains("grade")
+                || lower.contains("marks")
+                || lower.contains("cgpa")
+                || lower.contains("campus")
+                || lower.contains("faculty")
+                || lower.contains("hall ticket")
+                || lower.contains("circular")
+                || lower.contains("notice");
     }
 
     // ==========================================
@@ -639,8 +684,12 @@ public class AIChatbotService {
                     + "💡 **Next Step:** *Download official grade cards or verify hall tickets in `/student/results`.*";
         }
 
-        // 6. Role-Tailored Greeting / Welcome
-        if (matchesWord(lower, "hello", "hi", "hey", "who are you", "greetings")) {
+        // 6. Role-Tailored Greeting / Welcome (only for pure greetings, not full questions)
+        boolean isSimpleGreeting = (lower.equals("hello") || lower.equals("hi") || lower.equals("hey")
+                || lower.equals("greetings") || lower.equals("who are you") || lower.equals("who are you?")
+                || lower.matches("^(hi|hello|hey|greetings)[!., ]*$"))
+                && query.trim().length() < 30;
+        if (isSimpleGreeting) {
             String roleTitle = switch (role) {
                 case STUDENT -> "Student Academic & Career Assistant";
                 case FACULTY -> "Faculty Teaching & Curriculum Assistant";
@@ -682,32 +731,38 @@ public class AIChatbotService {
     // ==========================================
     // STAKEHOLDER SUGGESTIONS GENERATOR
     // ==========================================
-    private List<String> generateSuggestions(User user, String query) {
-        Role role = user.getRole() != null ? user.getRole() : Role.STUDENT;
-
-        if (role == Role.STUDENT) {
+    private List<String> generateSuggestions(User user, String query, String mode) {
+        if ("CODING".equalsIgnoreCase(mode)) {
+            return List.of(
+                    "Explain Binary Search in Python with complexity",
+                    "Design a Rate Limiter in Spring Boot",
+                    "How to implement LRU Cache in Java",
+                    "Clean Architecture vs Microservices",
+                    "Top 10 Git commands every engineer should know"
+            );
+        } else if ("LIFESKILLS".equalsIgnoreCase(mode)) {
+            return List.of(
+                    "How to overcome procrastination & build self-discipline",
+                    "Top 5 communication & public speaking techniques",
+                    "Atomic Habits: How to build habits that stick",
+                    "Managing stress, anxiety, and burnout effectively",
+                    "How to negotiate salary and speak assertively"
+            );
+        } else if ("CAMPUS".equalsIgnoreCase(mode)) {
             return List.of(
                     "Check my attendance % & exam eligibility",
                     "What is my current timetable today?",
                     "Show my pending fees & invoices",
                     "How to prepare for upcoming Semester Exams?",
-                    "DSA & Full-Stack Spring Boot study plan"
+                    "Semester Results & CGPA breakdown"
             );
-        } else if (role == Role.FACULTY) {
+        } else { // FREE / Universal Mode
             return List.of(
-                    "What are my assigned lectures today?",
-                    "How do I publish semester & mid marks?",
-                    "Generate quiz questions for my next lecture",
-                    "List students with <75% attendance",
-                    "Draft a research paper outline on Distributed AI"
-            );
-        } else {
-            return List.of(
-                    "Draft bad weather holiday circular",
-                    "Campus enrollment & faculty statistics",
-                    "Draft fee clearance notice for students",
-                    "Institutional audit checklist",
-                    "Overview of upcoming semester exams"
+                    "🚀 Explain QuickSort algorithm in Python",
+                    "🌱 How to build deep self-discipline & focus",
+                    "🗣️ 5 golden rules for confident communication",
+                    "📊 Check my campus attendance & fee dues",
+                    "💡 Brainstorm 3 high-impact startup ideas"
             );
         }
     }

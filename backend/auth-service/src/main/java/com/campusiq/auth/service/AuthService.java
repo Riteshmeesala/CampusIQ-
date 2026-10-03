@@ -68,7 +68,8 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        User user = userRepository.findByUsername(req.getUsername())
+        User user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCaseOrEnrollmentNumberIgnoreCase(req.getUsername(), req.getUsername(), req.getUsername())
+                .or(() -> userRepository.findByUsername(req.getUsername()))
                 .or(() -> userRepository.findByEmail(req.getUsername()))
                 .orElseThrow(() -> new BadRequestException("User not found"));
 

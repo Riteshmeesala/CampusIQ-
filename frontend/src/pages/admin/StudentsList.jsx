@@ -10,7 +10,7 @@ import {
 import {
   Search, Visibility, PersonAdd, Edit, Delete, School,
   AddCircleOutline, GroupAdd, Add, DeleteOutline, FileUpload, CheckCircle,
-  QrCodeScanner, FileDownload, VerifiedUser
+  FileDownload, VerifiedUser
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { userAPI } from '../../services/api';
@@ -457,22 +457,6 @@ export default function StudentsList() {
               }}
             >
               Export Excel
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<QrCodeScanner />}
-              onClick={() => navigate('/admin/student-scanner')}
-              sx={{
-                borderRadius: 3,
-                px: 2.2,
-                py: 1,
-                fontWeight: 700,
-                color: '#059669',
-                borderColor: '#059669',
-                '&:hover': { bgcolor: '#ecfdf5', borderColor: '#047857' }
-              }}
-            >
-              QR Scanner & Excel
             </Button>
             <Button
               variant="outlined"

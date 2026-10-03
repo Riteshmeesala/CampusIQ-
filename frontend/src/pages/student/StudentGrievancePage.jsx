@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, TextField, MenuItem, Dialog, DialogTitle,
-  DialogContent, DialogActions, Chip, Alert, IconButton, Tooltip
+  DialogContent, DialogActions, Chip, InputAdornment, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Tooltip
 } from '@mui/material';
-import { FlagOutlined, Add, Refresh } from '@mui/icons-material';
+import { Add, Refresh, Search, VisibilityOutlined } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { grievanceAPI } from '../../services/api';
 import { getSharedGrievances, saveSharedGrievance, DATA_SYNC_EVENTS, subscribeToDataSync } from '../../services/dataSync';
-import PageHeader from '../../components/shared/PageHeader';
 
 export default function StudentGrievancePage() {
   const { user } = useAuth();
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
+  const [selectedGrievance, setSelectedGrievance] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [form, setForm] = useState({
-    category: 'Academic',
+    category: 'Academic Grievance',
+    department: 'Information Technology',
     subject: '',
     desc: '',
   });
-  const [successMsg, setSuccessMsg] = useState('');
 
   const loadGrievances = async () => {
     try {
@@ -32,7 +34,6 @@ export default function StudentGrievancePage() {
         setGrievances(getSharedGrievances());
       }
     } catch (err) {
-      console.warn('Failed to load grievances from server, using local fallback:', err);
       setGrievances(getSharedGrievances());
     } finally {
       setLoading(false);
@@ -54,115 +55,210 @@ export default function StudentGrievancePage() {
     if (!form.subject.trim() || !form.desc.trim()) return;
 
     const payload = {
-      studentName: user?.name || 'Student',
-      rollNo: user?.username || '24CS001',
+      id: Date.now(),
+      studentName: user?.name || 'MEESALA RITESH',
+      rollNo: user?.enrollmentNumber || user?.username || '23BQ1A1268',
       category: form.category,
+      department: form.department,
       subject: form.subject.trim(),
-      desc: form.desc.trim(),
+      description: form.desc.trim(),
+      status: 'UNDER_REVIEW',
+      createdAt: new Date().toLocaleDateString(),
     };
 
-    try {
-      const res = await grievanceAPI.submitGrievance(payload);
-      const created = res.data?.data || res.data || payload;
-      saveSharedGrievance(created);
-      await loadGrievances();
-      setOpenModal(false);
-      setForm({ category: 'Academic', subject: '', desc: '' });
-      setSuccessMsg('Grievance lodged successfully to backend server. Committee will review within 48 hours.');
-      setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err) {
-      console.error('Error submitting grievance to backend:', err);
-      saveSharedGrievance(payload);
-      setGrievances(getSharedGrievances());
-      setOpenModal(false);
-      setSuccessMsg('Grievance saved locally (offline mode).');
-      setTimeout(() => setSuccessMsg(''), 4000);
-    }
+    saveSharedGrievance(payload);
+    setGrievances(getSharedGrievances());
+    setOpenModal(false);
+    setForm({
+      category: 'Academic Grievance',
+      department: 'Information Technology',
+      subject: '',
+      desc: '',
+    });
   };
 
+  const filtered = grievances.filter(item =>
+    item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.subject?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
-      <PageHeader
-        title="Student Grievance Redressal"
-        subtitle="Confidential institutional portal for academic, infrastructure, hostel, and fee grievances"
-        breadcrumbs={[
-          { label: 'Dashboard', path: '/student/dashboard' },
-          { label: 'Grievance' }
-        ]}
-        actions={
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: 'auto' }}>
+      {/* ── TOP HEADER MATCHING SCREENSHOT 5 ── */}
+      <Box
+        sx={{
+          bgcolor: '#ffffff',
+          p: '14px 20px',
+          borderRadius: '6px',
+          border: '1px solid #e2e8f0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2,
+          mb: 2.5
+        }}
+      >
+        <Typography sx={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
+          Grievance
+        </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {/* Orange Add New Button */}
           <Button
             variant="contained"
-            startIcon={<Add />}
+            size="small"
+            startIcon={<Add sx={{ fontSize: 16 }} />}
             onClick={() => setOpenModal(true)}
-            sx={{ bgcolor: '#0284c7', '&:hover': { bgcolor: '#0369a1' }, textTransform: 'none', fontWeight: 600 }}
+            sx={{
+              bgcolor: '#ea580c',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              textTransform: 'none',
+              px: 2,
+              py: 0.7,
+              borderRadius: '4px',
+              boxShadow: '0 2px 4px rgba(234, 88, 12, 0.25)',
+              '&:hover': { bgcolor: '#c2410c' }
+            }}
           >
-            Lodge Grievance
+            + Add New
           </Button>
-        }
-      />
 
-      {successMsg && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMsg('')}>
-          {successMsg}
-        </Alert>
-      )}
+          {/* Blue Refresh Button */}
+          <Button
+            variant="contained"
+            size="small"
+            disabled={loading}
+            startIcon={<Refresh sx={{ fontSize: 16 }} />}
+            onClick={loadGrievances}
+            sx={{
+              bgcolor: '#0284c7',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              textTransform: 'none',
+              px: 2,
+              py: 0.7,
+              borderRadius: '4px',
+              boxShadow: '0 2px 4px rgba(2, 132, 199, 0.25)',
+              '&:hover': { bgcolor: '#0369a1' }
+            }}
+          >
+            Refresh
+          </Button>
 
-      <Box sx={{ bgcolor: '#fff', borderRadius: 2, border: '1px solid #e2e8f0', p: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
-            My Grievance Tickets
-          </Typography>
-          <Tooltip title="Refresh">
-            <IconButton size="small" onClick={loadGrievances}><Refresh fontSize="small" /></IconButton>
-          </Tooltip>
+          {/* Search Box */}
+          <TextField
+            size="small"
+            placeholder="Search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ fontSize: 18, color: '#94a3b8' }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: { xs: 160, sm: 220 },
+              '& .MuiOutlinedInput-root': {
+                height: 36,
+                fontSize: '0.84rem',
+                borderRadius: '4px',
+                bgcolor: '#ffffff'
+              }
+            }}
+          />
         </Box>
-
-        {grievances.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
-            <FlagOutlined sx={{ fontSize: 40, color: '#94a3b8', mb: 1 }} />
-            <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>No grievances submitted</Typography>
-            <Typography sx={{ fontSize: 12, color: '#94a3b8', mb: 2 }}>Have an institutional issue or query? Lodge a confidential grievance.</Typography>
-            <Button variant="outlined" size="small" startIcon={<Add />} onClick={() => setOpenModal(true)} sx={{ textTransform: 'none' }}>
-              Lodge New Grievance
-            </Button>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {grievances.map((g, idx) => (
-              <Box key={idx} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0284c7' }}>{g.id}</Typography>
-                    <Chip label={g.category} size="small" sx={{ fontSize: 11, fontWeight: 600 }} />
-                  </Box>
-                  <Chip
-                    label={g.status}
-                    size="small"
-                    sx={{
-                      fontWeight: 700,
-                      fontSize: 11,
-                      bgcolor: g.status === 'Resolved' ? '#dcfce7' : '#fef9c3',
-                      color: g.status === 'Resolved' ? '#15803d' : '#854d0e'
-                    }}
-                  />
-                </Box>
-                <Typography sx={{ fontWeight: 700, fontSize: 15, color: '#0f172a', mb: 0.5 }}>{g.subject}</Typography>
-                <Typography sx={{ fontSize: 13, color: '#475569', mb: 1.5 }}>{g.desc}</Typography>
-                {g.response && (
-                  <Box sx={{ p: 1.5, bgcolor: '#eff6ff', borderRadius: 1.5, border: '1px solid #bfdbfe' }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', mb: 0.25 }}>Committee Response:</Typography>
-                    <Typography sx={{ fontSize: 12.5, color: '#1e3a8a' }}>{g.response}</Typography>
-                  </Box>
-                )}
-              </Box>
-            ))}
-          </Box>
-        )}
       </Box>
 
-      {/* Lodge Dialog */}
+      {/* ── TABLE WITH SOLID BLUE/CYAN HEADER MATCHING SCREENSHOT 5 ── */}
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          border: '1px solid #e2e8f0',
+          borderRadius: '4px',
+          bgcolor: '#ffffff',
+          minHeight: 480
+        }}
+      >
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#0284c7' }}>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, width: 60, fontSize: '0.88rem', py: 1.4 }}>
+                #
+              </TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: '0.88rem', py: 1.4 }}>
+                Category
+              </TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: '0.88rem', py: 1.4 }}>
+                Department
+              </TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, width: 140, fontSize: '0.88rem', py: 1.4 }} align="center">
+                Status
+              </TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, width: 100, fontSize: '0.88rem', py: 1.4 }} align="center">
+                Action
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 8, color: '#94a3b8', fontSize: '0.95rem' }}>
+                  No Data Found!
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((item, idx) => (
+                <TableRow key={item.id || idx} hover sx={{ '&:nth-of-type(even)': { bgcolor: '#f8fafc' } }}>
+                  <TableCell sx={{ fontWeight: 600, color: '#475569', fontSize: '0.86rem', py: 1.2 }}>
+                    {idx + 1}
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#0f172a', fontSize: '0.88rem', py: 1.2 }}>
+                    {item.category}
+                  </TableCell>
+                  <TableCell sx={{ color: '#334155', fontSize: '0.88rem', py: 1.2 }}>
+                    {item.department || 'Information Technology'}
+                  </TableCell>
+                  <TableCell align="center" sx={{ py: 1.2 }}>
+                    <Chip
+                      label={item.status || 'UNDER_REVIEW'}
+                      size="small"
+                      sx={{
+                        bgcolor: item.status === 'RESOLVED' ? '#dcfce7' : item.status === 'REJECTED' ? '#fee2e2' : '#fef3c7',
+                        color: item.status === 'RESOLVED' ? '#15803d' : item.status === 'REJECTED' ? '#b91c1c' : '#b45309',
+                        fontWeight: 700,
+                        fontSize: '0.72rem'
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="center" sx={{ py: 1.2 }}>
+                    <Tooltip title="View Grievance">
+                      <IconButton
+                        size="small"
+                        onClick={() => setSelectedGrievance(item)}
+                        sx={{ color: '#0284c7' }}
+                      >
+                        <VisibilityOutlined fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* ── LODGE GRIEVANCE MODAL ── */}
       <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#0f172a' }}>Lodge Institutional Grievance</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700, color: '#0f172a' }}>Submit Student Grievance / Appeal</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
             <TextField
@@ -173,44 +269,93 @@ export default function StudentGrievancePage() {
               fullWidth
               size="small"
             >
-              <MenuItem value="Academic">Academic & Evaluation</MenuItem>
-              <MenuItem value="Library Infrastructure">Library Infrastructure & Wi-Fi</MenuItem>
-              <MenuItem value="Hostel & Mess">Hostel & Mess Facilities</MenuItem>
-              <MenuItem value="Fee & Accounts">Fee & Payment Clarifications</MenuItem>
-              <MenuItem value="Transport">Campus Transport & Bus Routes</MenuItem>
-              <MenuItem value="Discipline & Anti-Ragging">Discipline & Anti-Ragging Cell</MenuItem>
+              <MenuItem value="Academic Grievance">Academic Grievance (Marks / Evaluation)</MenuItem>
+              <MenuItem value="Attendance Discrepancy">Attendance Discrepancy</MenuItem>
+              <MenuItem value="Examination / Hall Ticket">Examination / Hall Ticket</MenuItem>
+              <MenuItem value="Library / Lab Infrastructure">Library / Lab Infrastructure</MenuItem>
+              <MenuItem value="Hostel & Transport">Hostel & Transport</MenuItem>
+              <MenuItem value="General Campus Facility">General Campus Facility</MenuItem>
             </TextField>
-
             <TextField
-              label="Subject / Topic"
+              select
+              label="Department"
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+              fullWidth
+              size="small"
+            >
+              <MenuItem value="Information Technology">Information Technology</MenuItem>
+              <MenuItem value="Computer Science & Engineering">Computer Science & Engineering</MenuItem>
+              <MenuItem value="Electronics & Communication">Electronics & Communication</MenuItem>
+              <MenuItem value="Examination Cell">Examination Cell</MenuItem>
+              <MenuItem value="Accounts & Finance">Accounts & Finance</MenuItem>
+            </TextField>
+            <TextField
+              label="Subject / Summary"
               value={form.subject}
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              placeholder="Brief summary of the issue..."
+              placeholder="e.g. Discrepancy in 4-1 Mid-2 Internal Marks"
               required
               fullWidth
               size="small"
             />
-
             <TextField
               label="Detailed Explanation"
               value={form.desc}
               onChange={(e) => setForm({ ...form, desc: e.target.value })}
+              placeholder="Provide complete facts, dates, subject codes, and description..."
               multiline
               rows={4}
-              placeholder="Provide complete context, dates, locations, or faculty references..."
               required
               fullWidth
               size="small"
             />
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setOpenModal(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
-            <Button type="submit" variant="contained" sx={{ bgcolor: '#0284c7', textTransform: 'none', fontWeight: 600 }}>
+            <Button onClick={() => setOpenModal(false)} sx={{ textTransform: 'none', color: '#64748b' }}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              sx={{ bgcolor: '#ea580c', textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#c2410c' } }}
+            >
               Submit Grievance
             </Button>
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* ── VIEW GRIEVANCE DETAIL MODAL ── */}
+      {selectedGrievance && (
+        <Dialog open={Boolean(selectedGrievance)} onClose={() => setSelectedGrievance(null)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 700, color: '#0f172a' }}>Grievance Details</DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography sx={{ fontWeight: 700, color: '#0284c7' }}>{selectedGrievance.category}</Typography>
+              <Chip
+                label={selectedGrievance.status || 'UNDER_REVIEW'}
+                size="small"
+                sx={{
+                  bgcolor: selectedGrievance.status === 'RESOLVED' ? '#dcfce7' : '#fef3c7',
+                  color: selectedGrievance.status === 'RESOLVED' ? '#15803d' : '#b45309',
+                  fontWeight: 700
+                }}
+              />
+            </Box>
+            <Typography sx={{ fontSize: '0.85rem', color: '#64748b' }}>Department: {selectedGrievance.department}</Typography>
+            <Typography sx={{ fontWeight: 600, color: '#0f172a', mt: 1 }}>{selectedGrievance.subject}</Typography>
+            <Typography sx={{ fontSize: '0.88rem', color: '#334155', bgcolor: '#f8fafc', p: 2, borderRadius: 1, border: '1px solid #e2e8f0' }}>
+              {selectedGrievance.description || 'No detailed description provided.'}
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setSelectedGrievance(null)} sx={{ textTransform: 'none' }}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 }

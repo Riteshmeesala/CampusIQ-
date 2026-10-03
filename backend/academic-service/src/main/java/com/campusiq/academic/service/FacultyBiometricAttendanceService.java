@@ -146,7 +146,7 @@ public class FacultyBiometricAttendanceService {
         dto.setDaysPresent(present);
         dto.setDaysLate(late);
         dto.setDaysHalfDay(halfDay);
-        dto.setDaysAbsent(Math.max(0, totalWorkingDays - (present + halfDay)));
+        dto.setDaysAbsent(Math.max(absent, totalWorkingDays - (present + halfDay)));
 
         double effectivePresent = present + (halfDay * 0.5);
         BigDecimal pct = totalWorkingDays > 0

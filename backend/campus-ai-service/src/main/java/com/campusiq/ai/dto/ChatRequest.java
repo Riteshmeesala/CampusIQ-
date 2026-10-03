@@ -11,6 +11,7 @@ public class ChatRequest {
 
     private String sessionId;
     private List<Map<String, String>> history;
+    private String mode; // "FREE", "CODING", "LIFESKILLS", "CAMPUS"
 
     public ChatRequest() {}
 
@@ -20,4 +21,6 @@ public class ChatRequest {
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
     public List<Map<String, String>> getHistory() { return history; }
     public void setHistory(List<Map<String, String>> history) { this.history = history; }
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
 }

@@ -7,6 +7,7 @@ import {
   SupervisorAccount, AutoAwesome, AccountBalance, Close,
   Visibility, VisibilityOff
 } from '@mui/icons-material';
+import vvituLogo from '../../assets/vvitu-logo.png';
 
 const DASH = {
   ADMIN: '/admin/dashboard',
@@ -23,7 +24,7 @@ const STAKEHOLDERS = [
 const DEFAULT_CREDS = {
   ADMIN: { username: 'admin', password: 'Admin@123' },
   FACULTY: { username: 'faculty_raj', password: 'Admin@123' },
-  STUDENT: { username: '24CS001', password: 'Student@123' },
+  STUDENT: { username: '23BQ1A1268', password: 'Student@123' },
 };
 
 export default function LoginPage() {
@@ -231,44 +232,46 @@ export default function LoginPage() {
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 12,
             backgroundColor: '#ffffff',
-            padding: '8px 20px',
-            borderRadius: 30,
-            boxShadow: '0 4px 14px rgba(15, 23, 42, 0.06)',
+            padding: '8px 18px 8px 10px',
+            borderRadius: 14,
+            boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
             border: '1px solid #e2e8f0',
             marginBottom: 8
           }}>
             <div style={{
-              width: 32,
-              height: 32,
+              width: 42,
+              height: 42,
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #2563eb, #0284c7)',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff'
+              overflow: 'hidden',
+              padding: 2
             }}>
-              <AccountBalance sx={{ fontSize: 19 }} />
+              <img src={vvituLogo} alt="VVITU Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <div style={{ textAlign: 'left' }}>
               <div style={{
-                fontSize: 17,
-                fontWeight: 800,
+                fontSize: 18,
+                fontWeight: 900,
                 color: '#0f172a',
-                lineHeight: 1.1,
-                letterSpacing: '-0.3px'
+                lineHeight: 1.15,
+                letterSpacing: '-0.2px'
               }}>
-                CampusIQ<span style={{ color: '#0284c7' }}>+</span>
+                VVITU <span style={{ color: '#2563eb' }}>ERP</span>
               </div>
               <div style={{
-                fontSize: 10.5,
+                fontSize: 9.5,
                 fontWeight: 700,
                 color: '#64748b',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.03em',
                 textTransform: 'uppercase'
               }}>
-                AI Campus Intelligence Platform
+                Vasireddy Venkatadri Int. Tech. University
               </div>
             </div>
             <div style={{
@@ -569,7 +572,7 @@ export default function LoginPage() {
                   {[
                     { role: 'ADMIN', label: 'Admin', icon: '🛡️', un: 'admin' },
                     { role: 'FACULTY', label: 'Faculty', icon: '👨‍🏫', un: 'faculty_raj' },
-                    { role: 'STUDENT', label: 'Student', icon: '🎓', un: '24CS001' }
+                    { role: 'STUDENT', label: 'Student', icon: '🎓', un: '23BQ1A1268' }
                   ].map((s) => (
                     <button
                       key={s.role}
@@ -655,6 +658,27 @@ export default function LoginPage() {
             marginTop: 18,
             textAlign: 'center'
           }}>
+            <div style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                onClick={() => navigate('/register/student')}
+                style={{
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: 6,
+                  color: '#2563eb',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '7px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                🎓 New Student? Register Account
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => setAlertMsg('Password reset instructions have been sent to your administrator.')}
@@ -676,7 +700,7 @@ export default function LoginPage() {
               color: '#94a3b8',
               marginTop: 2
             }}>
-              © 2026 — CampusIQ+ Smart Campus Intelligence Platform
+              © 2026 — VVITU ERP Platform. Vasireddy Venkatadri International Technological University.
             </div>
             <div style={{
               fontSize: 10.5,

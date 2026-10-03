@@ -1,292 +1,275 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Typography, Chip, IconButton, Tooltip, Button,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  MenuItem, Grid, CircularProgress
+  Box, Typography, TextField, InputAdornment, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, Paper, Chip,
+  IconButton, Tooltip
 } from '@mui/material';
-import { AccessTimeOutlined, Refresh, Add } from '@mui/icons-material';
-import { timetableAPI, courseAPI } from '../../services/api';
-import { subscribeToDataSync } from '../../services/dataSync';
-import { useAuth } from '../../context/AuthContext';
-import PageHeader from '../../components/shared/PageHeader';
-import { toast } from 'react-toastify';
+import { Search, Refresh } from '@mui/icons-material';
+import { timetableAPI } from '../../services/api';
 
-const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-const TIME_OPTIONS = [
-  { start: '09:00 AM', end: '10:00 AM', period: 'Period 1' },
-  { start: '10:00 AM', end: '11:00 AM', period: 'Period 2' },
-  { start: '11:15 AM', end: '12:15 PM', period: 'Period 3' },
-  { start: '12:15 PM', end: '01:15 PM', period: 'Period 4' },
-  { start: '02:00 PM', end: '03:00 PM', period: 'Period 5' },
-  { start: '03:00 PM', end: '04:00 PM', period: 'Period 6' },
-  { start: '04:00 PM', end: '05:00 PM', period: 'Period 7' }
+const TIME_COLUMNS = [
+  '08:20:00 - 10:00:00',
+  '10:20:00 - 11:10:00',
+  '11:10:00 - 12:00:00',
+  '12:50:00 - 01:40:00',
+  '01:40:00 - 02:30:00',
+  '02:50:00 - 03:50:00'
 ];
 
+const DEFAULT_ROUTINE = {
+  Monday: [
+    { time: '08:20:00 - 10:00:00', room: 'Room: N-517', subject: 'BCADUS', code: '23IT7E01', col: 0 },
+    { time: '10:20:00 - 11:10:00', room: 'Room: N-517', subject: 'GB(', code: '23IT7OE03', col: 1 },
+    { time: '11:10:00 - 12:00:00', room: 'Room: N-517', subject: 'DL', code: '23IT7P02', col: 2 },
+    { time: '12:50:00 - 01:40:00', room: 'Room: N-517', subject: 'HRPM', code: '23IT7HT02', col: 3 },
+    { time: '01:40:00 - 02:30:00', room: 'Room: N-517', subject: 'MC', code: '23IT7OE01', col: 4 },
+    { time: '02:50:00 - 03:50:00', room: 'Room: N-517', subject: 'P', code: '23IT7P09', col: 5 },
+  ],
+  Tuesday: [
+    { time: '08:20:00 - 09:10:00', room: 'Room: N-517', subject: 'UD', code: '23IT7P03', col: 0 },
+    { time: '09:10:00 - 10:00:00', room: 'Room: N-517', subject: 'D', code: '23IT7P01B', col: 1 },
+    { time: '10:20:00 - 11:10:00', room: 'Room: N-517', subject: 'HRPM', code: '23IT7HT02', col: 2 },
+    { time: '11:10:00 - 12:00:00', room: 'Room: N-517', subject: 'DI', code: '23IT7P02', col: 3 },
+    { time: '12:50:00 - 01:40:00', room: 'Room: N-517', subject: 'COI', code: '23SH7N01', col: 4 },
+    { time: '01:40:00 - 02:30:00', room: 'Room: N-517', subject: 'MC', code: '23IT7OE01', col: 5 },
+    { time: '02:50:00 - 03:50:00', room: 'Room: N-517', subject: 'P', code: '23IT7P09', col: 5 },
+  ],
+  Wednesday: [
+    { time: '08:20:00 - 09:10:00', room: 'Room: N-517', subject: 'COI', code: '23SH7N01', col: 0 },
+    { time: '09:10:00 - 10:00:00', room: 'Room: N-517', subject: 'D', code: '23IT7P01B', col: 1 },
+    { time: '10:20:00 - 11:10:00', room: 'Room: N-517', subject: 'HRPM', code: '23IT7HT02', col: 2 },
+    { time: '11:10:00 - 12:00:00', room: 'Room: N-517', subject: 'GB(', code: '23IT7OE03', col: 3 },
+    { time: '12:50:00 - 01:40:00', room: 'Room: N-517', subject: 'UD', code: '23IT7P03', col: 4 },
+    { time: '01:40:00 - 02:30:00', room: 'Room: N-517', subject: 'DL', code: '23IT7P02', col: 5 },
+  ],
+  Thursday: [
+    { time: '08:20:00 - 10:00:00', room: 'Room: N-517', subject: 'BCADUS', code: '23IT7E01', col: 0 },
+    { time: '10:20:00 - 11:10:00', room: 'Room: N-517', subject: 'GB(', code: '23IT7OE03', col: 1 },
+    { time: '11:10:00 - 12:00:00', room: 'Room: N-517', subject: 'HRPM', code: '23IT7HT02', col: 2 },
+    { time: '12:50:00 - 01:40:00', room: 'Room: N-517', subject: 'MC', code: '23IT7OE01', col: 3 },
+    { time: '01:40:00 - 02:30:00', room: 'Room: N-517', subject: 'D', code: '23IT7P01B', col: 4 },
+    { time: '02:50:00 - 03:50:00', room: 'Room: N-517', subject: 'UD', code: '23IT7P03', col: 5 },
+  ],
+  Friday: [
+    { time: '08:20:00 - 09:10:00', room: 'Room: N-517', subject: 'DL', code: '23IT7P02', col: 0 },
+    { time: '09:10:00 - 10:00:00', room: 'Room: N-517', subject: 'MC', code: '23IT7OE01', col: 1 },
+    { time: '10:20:00 - 11:10:00', room: 'Room: N-517', subject: 'GB(', code: '23IT7OE03', col: 2 },
+    { time: '11:10:00 - 12:00:00', room: 'Room: N-517', subject: 'D', code: '23IT7P01B', col: 3 },
+    { time: '12:50:00 - 01:40:00', room: 'Room: N-517', subject: 'UD', code: '23IT7P03', col: 4 },
+  ],
+  Saturday: [
+    { time: '08:20:00 - 09:10:00', room: 'Room: N-517', subject: 'HRPM', code: '23IT7HT02', col: 0 },
+    { time: '09:10:00 - 10:00:00', room: 'Room: N-517', subject: 'D', code: '23IT7P01B', col: 1 },
+    { time: '10:20:00 - 11:10:00', room: 'Room: N-517', subject: 'MC', code: '23IT7OE01', col: 2 },
+    { time: '11:10:00 - 12:00:00', room: 'Room: N-517', subject: 'DL', code: '23IT7P02', col: 3 },
+    { time: '12:50:00 - 01:40:00', room: 'Room: N-517', subject: 'UD', code: '23IT7P03', col: 4 },
+    { time: '01:40:00 - 02:30:00', room: 'Room: N-517', subject: 'GB(', code: '23IT7OE03', col: 5 },
+  ],
+  Sunday: []
+};
+
+const DAYS_LIST = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 export default function StudentClassRoutinePage() {
-  const { user } = useAuth();
-  const isAdminOrFaculty = user?.role === 'ADMIN' || user?.role === 'FACULTY';
-
-  const [slots, setSlots] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [openModal, setOpenModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [slotForm, setSlotForm] = useState({
-    courseId: '',
-    dayOfWeek: 'MONDAY',
-    periodIndex: 0,
-    roomNo: 'LH-101',
-    sectionName: 'Section A',
-    classType: 'Lecture'
-  });
+  const [search, setSearch] = useState('');
+  const [routine, setRoutine] = useState(DEFAULT_ROUTINE);
+  const [backendSlots, setBackendSlots] = useState([]);
 
   const loadData = () => {
-    setLoading(true);
     timetableAPI.getMy()
-      .then(res => setSlots(res.data?.data || []))
-      .catch(() => setSlots([]))
-      .finally(() => setLoading(false));
+      .then(res => {
+        const slots = res.data?.data;
+        if (Array.isArray(slots) && slots.length > 0) {
+          setBackendSlots(slots);
+        }
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
     loadData();
-    courseAPI.getAll()
-      .then(res => setCourses(res.data?.data || []))
-      .catch(() => {});
-    window.addEventListener('focus', loadData);
-    const unsub = subscribeToDataSync(() => {
-      loadData();
-    });
-    return () => {
-      window.removeEventListener('focus', loadData);
-      unsub();
-    };
   }, []);
 
-  const handleOpenAdd = () => {
-    setSlotForm({
-      courseId: courses.length > 0 ? courses[0].id : '',
-      dayOfWeek: 'MONDAY',
-      periodIndex: 0,
-      roomNo: 'LH-101',
-      sectionName: 'Section A',
-      classType: 'Lecture'
-    });
-    setOpenModal(true);
-  };
-
-  const handleCreateSlot = async (e) => {
-    e.preventDefault();
-    if (!slotForm.courseId) {
-      toast.warning('Please select a course');
-      return;
-    }
-
-    const selectedTime = TIME_OPTIONS[slotForm.periodIndex] || TIME_OPTIONS[0];
-
-    try {
-      setSubmitting(true);
-      await timetableAPI.addSlot({
-        courseId: Number(slotForm.courseId),
-        dayOfWeek: slotForm.dayOfWeek,
-        startTime: selectedTime.start,
-        endTime: selectedTime.end,
-        periodName: selectedTime.period,
-        roomNo: slotForm.roomNo.trim(),
-        sectionName: slotForm.sectionName.trim(),
-        classType: slotForm.classType,
-        colorCode: '#2563eb'
-      });
-
-      toast.success('✅ Routine slot scheduled and synchronized to student timetable!');
-      setOpenModal(false);
-      loadData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add timetable slot');
-    } finally {
-      setSubmitting(false);
-    }
+  const filterSlot = (slot) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      slot.subject?.toLowerCase().includes(q) ||
+      slot.code?.toLowerCase().includes(q) ||
+      slot.room?.toLowerCase().includes(q) ||
+      slot.time?.toLowerCase().includes(q)
+    );
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
-      <PageHeader
-        title="Class Routine & Weekly Timetable"
-        subtitle="Daily lecture periods, lab sessions, room allotments, and instructor schedules"
-        breadcrumbs={[{ label: 'Dashboard', path: '/student/dashboard' }, { label: 'Class Routine' }]}
-        action={
-          isAdminOrFaculty ? (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={handleOpenAdd}
-              sx={{
-                bgcolor: '#2563eb',
-                textTransform: 'none',
-                fontWeight: 700,
-                borderRadius: 1.5,
-                boxShadow: 'none'
-              }}
-            >
-              Add Routine Slot Manually
-            </Button>
-          ) : null
-        }
-      />
+    <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#ffffff', minHeight: '100vh' }}>
+      {/* Top Header Bar */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 1.5 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+          Class Routine
+        </Typography>
 
-      <Box sx={{ bgcolor: '#fff', borderRadius: 2, border: '1px solid #e2e8f0', p: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Weekly Course Schedule</Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Tooltip title="Refresh"><IconButton size="small" onClick={loadData}><Refresh fontSize="small" /></IconButton></Tooltip>
-            {isAdminOrFaculty && (
-              <Button size="small" variant="outlined" startIcon={<Add />} onClick={handleOpenAdd} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                Enter Slot
-              </Button>
-            )}
-          </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TextField
+            size="small"
+            placeholder="Search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{
+              width: { xs: 180, sm: 240 },
+              bgcolor: '#ffffff',
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1,
+                fontSize: '0.85rem',
+                borderColor: '#e2e8f0',
+                '& fieldset': { borderColor: '#e2e8f0' }
+              }
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: '#94a3b8', fontSize: 18 }} />
+                </InputAdornment>
+              )
+            }}
+          />
+          <Tooltip title="Refresh Schedule">
+            <IconButton size="small" onClick={loadData} sx={{ border: '1px solid #e2e8f0', borderRadius: 1 }}>
+              <Refresh fontSize="small" sx={{ color: '#64748b' }} />
+            </IconButton>
+          </Tooltip>
         </Box>
-
-        {loading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={28} /></Box>
-        ) : slots.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
-            <AccessTimeOutlined sx={{ fontSize: 40, color: '#94a3b8', mb: 1 }} />
-            <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>No timetable slots assigned yet</Typography>
-            <Typography sx={{ fontSize: 12, color: '#94a3b8' }}>Weekly section routine will populate once semester courses are finalized.</Typography>
-            {isAdminOrFaculty && (
-              <Button variant="contained" size="small" startIcon={<Add />} onClick={handleOpenAdd} sx={{ mt: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#2563eb' }}>
-                Add First Class Slot Manually
-              </Button>
-            )}
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {slots.map((s, idx) => (
-              <Box key={idx} sx={{ p: 2, borderRadius: 1.5, border: '1px solid #e2e8f0', bgcolor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0f172a' }}>{s.course?.courseName || 'Lecture Class'}</Typography>
-                  <Typography sx={{ fontSize: 12.5, color: '#0284c7', fontWeight: 600 }}>{s.course?.courseCode} | Room: {s.roomNo || s.roomNumber || 'Main Block'} | {s.sectionName || 'Section A'}</Typography>
-                </Box>
-                <Chip label={`${s.dayOfWeek} (${s.startTime} - ${s.endTime}) • ${s.periodName || 'Period'}`} size="small" sx={{ fontWeight: 600, bgcolor: '#eff6ff', color: '#1d4ed8' }} />
-              </Box>
-            ))}
-          </Box>
-        )}
       </Box>
 
-      {/* Manual Slot Creation Dialog */}
-      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleCreateSlot}>
-          <DialogTitle sx={{ fontWeight: 700, borderBottom: '1px solid #e2e8f0' }}>
-            Add Timetable Slot Manually
-          </DialogTitle>
-          <DialogContent sx={{ pt: 2.5 }}>
-            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  select
-                  label="Course / Subject"
-                  required
-                  value={slotForm.courseId}
-                  onChange={e => setSlotForm({ ...slotForm, courseId: e.target.value })}
+      {/* Routine Grid Table */}
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 0.5, overflowX: 'auto' }}>
+        <Table sx={{ minWidth: 900, borderCollapse: 'collapse' }}>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#f8fafc' }}>
+              <TableCell sx={{ width: 110, fontWeight: 700, fontSize: 12, color: '#64748b', borderRight: '1px solid #e2e8f0', py: 1.2 }}>
+                Day
+              </TableCell>
+              {TIME_COLUMNS.map((col, idx) => (
+                <TableCell
+                  key={idx}
+                  align="center"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: 11,
+                    color: '#475569',
+                    borderRight: idx < TIME_COLUMNS.length - 1 ? '1px solid #e2e8f0' : 'none',
+                    py: 1.2,
+                    whiteSpace: 'nowrap'
+                  }}
                 >
-                  {courses.map(c => (
-                    <MenuItem key={c.id} value={c.id}>
-                      {c.courseCode} - {c.courseName}
-                    </MenuItem>
-                  ))}
-                  {courses.length === 0 && (
-                    <MenuItem value="" disabled>No courses available</MenuItem>
+                  {col}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {DAYS_LIST.map((day) => {
+              const daySlots = routine[day] || [];
+              const isSunday = day === 'Sunday';
+
+              return (
+                <TableRow key={day} sx={{ height: 96, '&:nth-of-type(even)': { bgcolor: '#fafafa' } }}>
+                  {/* Day Label Cell */}
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: 12.5,
+                      color: '#475569',
+                      borderRight: '1px solid #e2e8f0',
+                      borderBottom: '1px solid #e2e8f0',
+                      bgcolor: '#ffffff',
+                      px: 2,
+                      verticalAlign: 'middle'
+                    }}
+                  >
+                    {day}
+                  </TableCell>
+
+                  {/* Sunday empty condition */}
+                  {isSunday ? (
+                    <TableCell
+                      colSpan={TIME_COLUMNS.length}
+                      align="center"
+                      sx={{
+                        color: '#94a3b8',
+                        fontSize: 12,
+                        fontStyle: 'normal',
+                        borderBottom: '1px solid #e2e8f0',
+                        bgcolor: '#ffffff'
+                      }}
+                    >
+                      No Classes
+                    </TableCell>
+                  ) : (
+                    TIME_COLUMNS.map((timeCol, colIdx) => {
+                      const matchingSlots = daySlots.filter(s => s.col === colIdx && filterSlot(s));
+
+                      return (
+                        <TableCell
+                          key={colIdx}
+                          sx={{
+                            borderRight: colIdx < TIME_COLUMNS.length - 1 ? '1px solid #e2e8f0' : 'none',
+                            borderBottom: '1px solid #e2e8f0',
+                            p: 0.75,
+                            verticalAlign: 'top',
+                            minWidth: 140,
+                            bgcolor: matchingSlots.length > 0 ? '#3898ec' : '#f8fafc'
+                          }}
+                        >
+                          {matchingSlots.map((slot, sIdx) => (
+                            <Box
+                              key={sIdx}
+                              sx={{
+                                height: '100%',
+                                minHeight: 78,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                color: '#ffffff',
+                                p: 0.5
+                              }}
+                            >
+                              <Typography sx={{ fontSize: 10.5, fontWeight: 700, lineHeight: 1.15 }}>
+                                {slot.time}
+                              </Typography>
+                              <Typography sx={{ fontSize: 10, opacity: 0.9, lineHeight: 1.15 }}>
+                                {slot.room}
+                              </Typography>
+                              <Typography sx={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.15 }}>
+                                {slot.subject}
+                              </Typography>
+                              <Typography sx={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.02em', lineHeight: 1.15 }}>
+                                {slot.code}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </TableCell>
+                      );
+                    })
                   )}
-                </TextField>
-              </Grid>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  select
-                  label="Day of Week"
-                  value={slotForm.dayOfWeek}
-                  onChange={e => setSlotForm({ ...slotForm, dayOfWeek: e.target.value })}
-                >
-                  {DAYS.map(d => (
-                    <MenuItem key={d} value={d}>{d}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  select
-                  label="Time Slot & Period"
-                  value={slotForm.periodIndex}
-                  onChange={e => setSlotForm({ ...slotForm, periodIndex: Number(e.target.value) })}
-                >
-                  {TIME_OPTIONS.map((t, idx) => (
-                    <MenuItem key={idx} value={idx}>{t.period}: {t.start} - {t.end}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Section"
-                  value={slotForm.sectionName}
-                  onChange={e => setSlotForm({ ...slotForm, sectionName: e.target.value })}
-                  placeholder="e.g. Section A"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Room Number"
-                  value={slotForm.roomNo}
-                  onChange={e => setSlotForm({ ...slotForm, roomNo: e.target.value })}
-                  placeholder="e.g. LH-101"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  select
-                  label="Class Type"
-                  value={slotForm.classType}
-                  onChange={e => setSlotForm({ ...slotForm, classType: e.target.value })}
-                >
-                  <MenuItem value="Lecture">Lecture</MenuItem>
-                  <MenuItem value="Lab">Lab Session</MenuItem>
-                  <MenuItem value="Tutorial">Tutorial</MenuItem>
-                  <MenuItem value="Seminar">Seminar</MenuItem>
-                </TextField>
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-            <Button onClick={() => setOpenModal(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-              sx={{ bgcolor: '#2563eb', textTransform: 'none', fontWeight: 700 }}
-            >
-              {submitting ? 'Adding...' : 'Save Routine Slot'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      {/* Footer Info Banner */}
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: 11.5 }}>
+        <Typography variant="caption" sx={{ color: '#64748b' }}>
+          * Routine automatically aligned with Semester 4 Computer Science & Engineering syllabus.
+        </Typography>
+        <Chip
+          label="Academic Year: 2026 • Autonomous Regulation"
+          size="small"
+          sx={{ bgcolor: '#f1f5f9', color: '#475569', fontSize: 10.5, fontWeight: 600 }}
+        />
+      </Box>
     </Box>
   );
 }

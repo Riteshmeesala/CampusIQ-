@@ -7,8 +7,11 @@ $root = $PSScriptRoot
 
 if (Test-Path "$root\.env") {
     Get-Content "$root\.env" | ForEach-Object {
-        if ($_ -match '^\s*([^#=]+)\s*=\s*(.*)$') {
-            [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim())
+        if ($_ -match '^\s*([^#=\s]+)\s*=\s*(.*)$') {
+            $k = $matches[1].Trim()
+            $v = $matches[2].Trim()
+            [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
+            Set-Item -Path "env:$k" -Value $v
         }
     }
 }

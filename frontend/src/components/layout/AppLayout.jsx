@@ -12,7 +12,7 @@ import {
   SchoolOutlined, AssessmentOutlined, AutoGraphOutlined,
   LibraryBooksOutlined, Close, PersonOutline, TrendingUpOutlined,
   CampaignOutlined, EventNoteOutlined, MenuBookOutlined,
-  ScheduleOutlined, GradeOutlined, AccountBalanceOutlined, QrCode2Outlined,
+  ScheduleOutlined, GradeOutlined, AccountBalanceOutlined,
   SearchOutlined, SpeedOutlined, WarningAmberOutlined,
   GroupOutlined, MenuBook, BusinessCenterOutlined, AssignmentOutlined,
   AutoStoriesOutlined, LocalLibraryOutlined, SupervisorAccountOutlined,
@@ -22,13 +22,14 @@ import {
   AccessTimeOutlined, PollOutlined, HotelOutlined, DirectionsBusOutlined,
   Inventory2Outlined, FlagOutlined, RateReviewOutlined, FileDownloadOutlined,
   WorkspacePremiumOutlined, AssignmentIndOutlined, QuestionAnswerOutlined,
-  ReceiptLongOutlined, FolderOutlined, ErrorOutline, Fingerprint
+  ReceiptLongOutlined, FolderOutlined, ErrorOutline, Fingerprint, CheckCircle
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
 import { notifAPI } from '../../services/api';
 import { COLORS } from '../../theme/theme';
 import FloatingCampusBot from '../shared/FloatingCampusBot';
+import vvituLogo from '../../assets/vvitu-logo.png';
 
 const DRAWER_W = 270;
 
@@ -122,6 +123,23 @@ function SubmenuItem({ label, active, onClick, hasSub }) {
 }
 
 function SectionHeading({ title }) {
+  if (title === 'Pages') {
+    return (
+      <Typography
+        sx={{
+          px: 2,
+          pt: 1,
+          pb: 0.5,
+          fontSize: '0.98rem',
+          fontWeight: 800,
+          color: '#1e293b',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        {title}
+      </Typography>
+    );
+  }
   return (
     <Typography
       sx={{
@@ -302,62 +320,68 @@ export default function AppLayout() {
     { label: 'Subject-Wise Result Report', tab: 1 },
   ];
 
-  const studentSidebarSections = [
-    {
-      heading: null,
-      items: [
-        { icon: <DashboardIcon fontSize="small" />, label: 'Dashboard', path: '/student/dashboard', isOrange: true },
-        { icon: <AutoGraphOutlined fontSize="small" />, label: 'AI Performance Insights', path: '/student/ai-insights' },
-        { icon: <PsychologyOutlined fontSize="small" />, label: 'AI Study Plan Generator', path: '/student/study-plan' },
-        { icon: <ChatBubbleOutline fontSize="small" />, label: 'Campus Intelligence AI', path: '/chatbot' },
-      ]
-    },
-    {
-      heading: 'Pages',
-      items: [
-        { icon: <CalendarMonthOutlined fontSize="small" />, label: 'Calendar', path: '/student/calendar' },
-        { icon: <AccessTimeOutlined fontSize="small" />, label: 'Class Routine', path: '/student/class-routine' },
-        { icon: <PollOutlined fontSize="small" />, label: 'Student Satisfaction Survey', path: '/student/satisfaction-survey' },
-        { icon: <AssessmentOutlined fontSize="small" />, label: 'Course End Survey', path: '/student/course-end-survey' },
-        { icon: <NotificationsOutlined fontSize="small" />, label: 'Exam Notification', path: '/student/exam-notifications' },
-        { icon: <ChatBubbleOutline fontSize="small" />, label: 'Exam Routine', path: '/student/exam-routine' },
-        { icon: <MenuBookOutlined fontSize="small" />, label: 'Exam Results', path: '/student/exam-results' },
-        { icon: <BarChartOutlined fontSize="small" />, label: 'Monthly Attendance', path: '/student/monthly-attendance' },
-        { icon: <MenuBookOutlined fontSize="small" />, label: 'Attendance Summary', path: '/student/attendance-summary' },
-        { icon: <AssignmentIndOutlined fontSize="small" />, label: 'Student Counseller', path: '/student/counselor' },
-        { icon: <EmojiEventsOutlined fontSize="small" />, label: 'Student Achievements', path: '/student/achievements' },
-        { icon: <BusinessCenterOutlined fontSize="small" />, label: 'Student Internships', path: '/student/internships' },
-        { icon: <DescriptionOutlined fontSize="small" />, label: 'Apply Leaves', path: '/student/apply-leaves' },
-        { icon: <ErrorOutline fontSize="small" />, label: 'Warnings', path: '/student/warnings' },
-        { icon: <FlagOutlined fontSize="small" />, label: 'Grievance', path: '/student/grievance' },
-        { icon: <QuestionAnswerOutlined fontSize="small" />, label: 'My Approvals', path: '/student/my-approvals' },
-        { icon: <LocalLibraryOutlined fontSize="small" />, label: 'Library', path: '/student/library' },
-        { icon: <SearchOutlined fontSize="small" />, label: 'Library Book Search', path: '/student/library-search' },
-        { icon: <MenuBook fontSize="small" />, label: 'Library New Book Arrivals', path: '/student/library-new-arrivals' },
-        { icon: <ReceiptLongOutlined fontSize="small" />, label: 'Library Invoice Date Range Reports', path: '/student/library-invoices' },
-        { icon: <HotelOutlined fontSize="small" />, label: 'Hostel', path: '/student/hostel' },
-        { icon: <DescriptionOutlined fontSize="small" />, label: 'Notices', path: '/student/notices' },
-        { icon: <PaymentOutlined fontSize="small" />, label: 'Fee Dues', path: '/student/fee-dues' },
-        { icon: <AssignmentOutlined fontSize="small" />, label: 'Assignments', path: '/student/assignments' },
-        { icon: <FolderOutlined fontSize="small" />, label: 'Project Details', path: '/student/project-details' },
-        { icon: <DirectionsBusOutlined fontSize="small" />, label: 'Check My Bus', path: '/student/bus-tracking' },
-        { icon: <Inventory2Outlined fontSize="small" />, label: 'YearBook', path: '/student/yearbook' },
-        { icon: <SchoolOutlined fontSize="small" />, label: 'Placements', path: '/student/placements' },
-        { icon: <CalendarMonthOutlined fontSize="small" />, label: 'Placements Calendar', path: '/student/placements-calendar' },
-        { icon: <RateReviewOutlined fontSize="small" />, label: 'Feedback', path: '/student/feedback' },
-        { icon: <FileDownloadOutlined fontSize="small" />, label: 'Download-Study Material', path: '/student/study-material' },
-        { icon: <WorkspacePremiumOutlined fontSize="small" />, label: 'Transfer Certificate', path: '/student/transfer-certificate' },
-        { icon: <WorkspacePremiumOutlined fontSize="small" />, label: 'Custodian Certificate', path: '/student/custodian-certificate' },
-        { icon: <WorkspacePremiumOutlined fontSize="small" />, label: 'Study And Conduct Certificate', path: '/student/conduct-certificate' },
-      ]
-    }
+  const studentTopItem = {
+    icon: (
+      <Box sx={{
+        width: 24,
+        height: 24,
+        borderRadius: 1.2,
+        bgcolor: '#3b82f6',
+        color: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 2px 4px rgba(59,130,246,0.3)'
+      }}>
+        <DescriptionOutlined sx={{ fontSize: 15 }} />
+      </Box>
+    ),
+    label: 'Test',
+    path: '/student/test',
+  };
+
+  const studentPagesItems = [
+    { icon: <AutoAwesome fontSize="small" sx={{ color: '#0284c7' }} />, label: 'Campus AI Chatbot', path: '/student/chatbot' },
+    { icon: <CalendarMonthOutlined fontSize="small" />, label: 'Calendar', path: '/student/calendar' },
+    { icon: <AccessTimeOutlined fontSize="small" />, label: 'Class Routine', path: '/student/class-routine' },
+    { icon: <BarChartOutlined fontSize="small" />, label: 'Student Satisfaction Survey', path: '/student/satisfaction-survey' },
+    { icon: <BarChartOutlined fontSize="small" />, label: 'Course End Survey', path: '/student/course-end-survey' },
+    { icon: <NotificationsOutlined fontSize="small" />, label: 'Exam Notification', path: '/student/exam-notifications' },
+    { icon: <ChatBubbleOutline fontSize="small" />, label: 'Exam Routine', path: '/student/exam-routine' },
+    { icon: <MenuBookOutlined fontSize="small" />, label: 'Exam Results', path: '/student/exam-results' },
+    { icon: <BarChartOutlined fontSize="small" />, label: 'Monthly Attendance', path: '/student/monthly-attendance' },
+    { icon: <AutoStoriesOutlined fontSize="small" />, label: 'Attendance Summary', path: '/student/attendance-summary' },
+    { icon: <AssignmentIndOutlined fontSize="small" />, label: 'Student Counseller', path: '/student/counselor' },
+    { icon: <EmojiEventsOutlined fontSize="small" />, label: 'Student Achievements', path: '/student/achievements' },
+    { icon: <BusinessCenterOutlined fontSize="small" />, label: 'Student Internships', path: '/student/internships' },
+    { icon: <AssignmentOutlined fontSize="small" />, label: 'Apply Leaves', path: '/student/apply-leaves' },
+    { icon: <ErrorOutline fontSize="small" />, label: 'Warnings', path: '/student/warnings' },
+    { icon: <FlagOutlined fontSize="small" />, label: 'Grievance', path: '/student/grievance' },
+    { icon: <QuestionAnswerOutlined fontSize="small" />, label: 'My Approvals', path: '/student/my-approvals' },
+    { icon: <LocalLibraryOutlined fontSize="small" />, label: 'Library', path: '/student/library' },
+    { icon: <SearchOutlined fontSize="small" />, label: 'Library Book Search', path: '/student/library-search' },
+    { icon: <LocalLibraryOutlined fontSize="small" />, label: 'Library New Book Arrivals', path: '/student/library-new-arrivals' },
+    { icon: <ReceiptLongOutlined fontSize="small" />, label: 'Library Invoice date Range Reports', path: '/student/library-invoices' },
+    { icon: <HotelOutlined fontSize="small" />, label: 'Hostel', path: '/student/hostel' },
+    { icon: <CampaignOutlined fontSize="small" />, label: 'Notices', path: '/student/notices' },
+    { icon: <PaymentOutlined fontSize="small" />, label: 'Fee Dues', path: '/student/fee-dues' },
+    { icon: <AssignmentOutlined fontSize="small" />, label: 'Assignments', path: '/student/assignments' },
+    { icon: <FolderOutlined fontSize="small" />, label: 'Project Details', path: '/student/project-details' },
+    { icon: <DirectionsBusOutlined fontSize="small" />, label: 'Check My Bus', path: '/student/bus-tracking' },
+    { icon: <MenuBookOutlined fontSize="small" />, label: 'YearBook', path: '/student/yearbook' },
+    { icon: <SchoolOutlined fontSize="small" />, label: 'Placements', path: '/student/placements' },
+    { icon: <EventNoteOutlined fontSize="small" />, label: 'Placements Calendar', path: '/student/placements-calendar' },
+    { icon: <RateReviewOutlined fontSize="small" />, label: 'Feedback', path: '/student/feedback' },
+    { icon: <FileDownloadOutlined fontSize="small" />, label: 'Download-Study Material', path: '/student/study-material' },
+    { icon: <WorkspacePremiumOutlined fontSize="small" />, label: 'Transfer Certificate', path: '/student/transfer-certificate' },
+    { icon: <WorkspacePremiumOutlined fontSize="small" />, label: 'Custodian Certificate', path: '/student/custodian-certificate' },
+    { icon: <WorkspacePremiumOutlined fontSize="small" />, label: 'Study And Conduct Certificate', path: '/student/conduct-certificate' },
   ];
 
   const adminNav = [
     { icon: <DashboardIcon fontSize="small" />,  label: 'Executive Dashboard', path: '/admin/dashboard' },
     { icon: <PeopleAltOutlined fontSize="small" />,  label: 'Student Records',     path: '/admin/students' },
     { icon: <AssessmentOutlined fontSize="small" />, label: 'Semester Final Marks Manager', path: '/admin/academic-records' },
-    { icon: <QrCode2Outlined fontSize="small" />,    label: 'QR Registration & Excel Import', path: '/admin/student-scanner' },
     { icon: <Fingerprint fontSize="small" />,        label: 'Faculty Biometric Attendance', path: '/admin/faculty-attendance' },
     { icon: <CalendarMonthOutlined fontSize="small" />, label: 'Students Attendance Suite', path: '/attendance' },
     { icon: <BarChartOutlined fontSize="small" />,   label: 'Institutional Insights', path: '/student/ai-insights' },
@@ -534,31 +558,46 @@ export default function AppLayout() {
       overflow: 'hidden',
     }}>
       {/* Brand Header */}
-      <Box sx={{ px: 2.2, py: 2, display: 'flex', alignItems: 'center', gap: 1.25, borderBottom: `1px solid ${COLORS.border}` }}>
+      <Box sx={{ px: 2, py: 1.6, display: 'flex', alignItems: 'center', gap: 1.25, borderBottom: `1px solid ${COLORS.border}` }}>
         <Box sx={{
-          width: 34,
-          height: 34,
-          borderRadius: 1,
-          backgroundColor: isFaculty ? '#ea580c' : '#2563eb',
+          width: 38,
+          height: 38,
+          borderRadius: 1.5,
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#ffffff',
-          boxShadow: isFaculty ? '0 2px 8px rgba(234, 88, 12, 0.3)' : '0 2px 8px rgba(37, 99, 235, 0.3)'
+          overflow: 'hidden',
+          p: 0.3,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
         }}>
-          <AccountBalanceOutlined sx={{ fontSize: 20 }} />
+          <Box
+            component="img"
+            src={vvituLogo}
+            alt="VVITU ERP"
+            sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
         </Box>
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{
             color: '#0f172a',
             fontWeight: 800,
-            fontSize: '0.96rem',
+            fontSize: '0.98rem',
             lineHeight: 1.15,
             letterSpacing: '-0.01em',
           }}>
-            CampusIQ<span style={{ color: isFaculty ? '#ea580c' : '#2563eb' }}>+</span>
+            VVITU <span style={{ color: isFaculty ? '#ea580c' : '#2563eb' }}>ERP</span>
           </Typography>
-          <Typography sx={{ color: '#64748b', fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+          <Typography sx={{
+            color: '#64748b',
+            fontSize: '0.62rem',
+            fontWeight: 700,
+            letterSpacing: '0.03em',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
             {isFaculty ? 'FACULTY ERP SUITE' : isAdmin ? 'ADMINISTRATIVE ERP' : 'STUDENT ERP SUITE'}
           </Typography>
         </Box>
@@ -649,30 +688,38 @@ export default function AppLayout() {
             </Box>
           ))
         ) : !isAdmin ? (
-          studentSidebarSections.map((sec, sIdx) => (
-            <Box key={sIdx} sx={{ mb: 1 }}>
-              {sec.heading && <SectionHeading title={sec.heading} />}
-              <List disablePadding>
-                {sec.items.map((item, i) => {
-                  const active = location.pathname === item.path;
-                  return (
-                    <SidebarItem
-                      key={i}
-                      icon={item.icon}
-                      label={item.label}
-                      path={item.path}
-                      active={active}
-                      isOrangeDashboard={item.isOrange}
-                      onClick={() => {
-                        navigate(item.path);
-                        if (isMobile) setMobileOpen(false);
-                      }}
-                    />
-                  );
-                })}
-              </List>
-            </Box>
-          ))
+          <Box sx={{ py: 0.5 }}>
+            <SidebarItem
+              icon={studentTopItem.icon}
+              label={studentTopItem.label}
+              path={studentTopItem.path}
+              active={location.pathname === studentTopItem.path}
+              onClick={() => {
+                navigate(studentTopItem.path);
+                if (isMobile) setMobileOpen(false);
+              }}
+            />
+            <Divider sx={{ my: 1, borderColor: '#f1f5f9' }} />
+            <SectionHeading title="Pages" />
+            <List disablePadding>
+              {studentPagesItems.map((item, i) => {
+                const active = location.pathname === item.path;
+                return (
+                  <SidebarItem
+                    key={i}
+                    icon={item.icon}
+                    label={item.label}
+                    path={item.path}
+                    active={active}
+                    onClick={() => {
+                      navigate(item.path);
+                      if (isMobile) setMobileOpen(false);
+                    }}
+                  />
+                );
+              })}
+            </List>
+          </Box>
         ) : (
           <List disablePadding>
             {adminNav.map((item, i) => {
@@ -742,29 +789,75 @@ export default function AppLayout() {
                 <MenuIcon />
               </IconButton>
             )}
-            <Typography variant="subtitle1" fontWeight={700} color="#0f172a">
-              Academic Term: Even Semester 2023-2024
+            <Typography
+              sx={{
+                fontWeight: 700,
+                color: '#475569',
+                letterSpacing: '0.06em',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                fontFamily: 'Inter, -apple-system, sans-serif'
+              }}
+            >
+              {user?.name || 'MEESALA RITESH'}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Tooltip title="Campus Intelligence AI Assistant">
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ChatBubbleOutline />}
-                onClick={() => navigate('/chatbot')}
-                sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, fontSize: 12, display: { xs: 'none', sm: 'inline-flex' } }}
-              >
-                Campus AI
-              </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Green Success Login Banner matching official VVIT portal */}
+            {!isFaculty && !isAdmin && (
+              <Box sx={{
+                display: { xs: 'none', sm: 'flex' },
+                alignItems: 'center',
+                gap: 1,
+                bgcolor: '#16a34a',
+                color: '#ffffff',
+                px: 2,
+                py: 0.6,
+                borderRadius: 2,
+                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)'
+              }}>
+                <CheckCircle sx={{ fontSize: 18, color: '#bbf7d0' }} />
+                <Box>
+                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.15 }}>Success</Typography>
+                  <Typography sx={{ fontSize: '0.68rem', opacity: 0.95, lineHeight: 1.15 }}>You Are Just Logged In!</Typography>
+                </Box>
+              </Box>
+            )}
+
+            <Tooltip title="AI Campus Intelligence Assistant">
+              <IconButton onClick={() => navigate('/student/chatbot')} size="small" sx={{ color: '#0284c7', bgcolor: '#f0f9ff' }}>
+                <AutoAwesome fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Messages">
+              <IconButton onClick={() => navigate('/student/chatbot')} size="small" sx={{ color: '#475569' }}>
+                <ChatBubbleOutline fontSize="small" />
+              </IconButton>
             </Tooltip>
             <Tooltip title="Notifications">
-              <IconButton onClick={() => navigate('/announcements')} sx={{ color: '#64748b' }}>
-                <Badge badgeContent={notifCount} color="error">
-                  <NotificationsOutlined />
+              <IconButton onClick={() => navigate('/student/exam-notifications')} size="small" sx={{ color: '#475569' }}>
+                <Badge color="error" variant="dot" overlap="circular">
+                  <NotificationsOutlined fontSize="small" />
                 </Badge>
               </IconButton>
+            </Tooltip>
+            <Tooltip title="Profile">
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: '#0f172a',
+                  color: '#ffffff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+                onClick={() => navigate('/student/dashboard')}
+              >
+                <PersonOutline sx={{ fontSize: 20 }} />
+              </Avatar>
             </Tooltip>
           </Box>
         </Toolbar>

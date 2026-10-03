@@ -40,6 +40,7 @@ export default function ChatbotPage() {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(null);
+  const [selectedMode, setSelectedMode] = useState('FREE'); // 'FREE', 'CODING', 'LIFESKILLS', 'CAMPUS'
 
   // Rename Dialog State
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -330,7 +331,7 @@ export default function ChatbotPage() {
 
     try {
       const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
-      const res = await aiAPI.chat(query, history, activeSessionId);
+      const res = await aiAPI.chat(query, history, activeSessionId, selectedMode);
 
       const outer = res?.data;
       const inner = outer?.data || outer || {};
@@ -1121,6 +1122,50 @@ export default function ChatbotPage() {
           width: '100%',
           mx: 'auto'
         }}>
+          {/* Mode Selector Chips: Free Mode, Coding, Life Skills, Campus */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mb: 1.25,
+            overflowX: 'auto',
+            pb: 0.5,
+            '&::-webkit-scrollbar': { height: 4 }
+          }}>
+            {[
+              { id: 'FREE', label: '🌐 Free Mode (Ask Anything)', desc: 'Coding, Life Skills, Philosophy, General' },
+              { id: 'CODING', label: '💻 Coding & Tech', desc: 'DSA, System Design, Architecture & Debugging' },
+              { id: 'LIFESKILLS', label: '🌱 Life Skills & Growth', desc: 'Discipline, Habits, Communication, Career' },
+              { id: 'CAMPUS', label: '🎓 Campus & Academics', desc: 'Attendance, Fees, Exams, Timetable' },
+            ].map((m) => {
+              const isSelected = selectedMode === m.id;
+              return (
+                <Chip
+                  key={m.id}
+                  label={m.label}
+                  onClick={() => setSelectedMode(m.id)}
+                  clickable
+                  size="small"
+                  sx={{
+                    fontWeight: isSelected ? 700 : 500,
+                    fontSize: '0.78rem',
+                    py: 1.8,
+                    px: 0.8,
+                    borderRadius: '16px',
+                    bgcolor: isSelected ? '#0f172a' : '#f1f5f9',
+                    color: isSelected ? '#ffffff' : '#475569',
+                    border: isSelected ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                    boxShadow: isSelected ? '0 2px 5px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: isSelected ? '#1e293b' : '#e2e8f0',
+                    }
+                  }}
+                />
+              );
+            })}
+          </Box>
+
           <Box
             component="form"
             onSubmit={handleSend}
@@ -1146,7 +1191,17 @@ export default function ChatbotPage() {
               fullWidth
               multiline
               maxRows={4}
-              placeholder={listening ? 'Listening to voice query...' : `Ask Grok AI (${roleConfig.label})...`}
+              placeholder={
+                listening
+                  ? 'Listening to voice query...'
+                  : selectedMode === 'CODING'
+                  ? 'Ask any coding, DSA, algorithm, or architecture question...'
+                  : selectedMode === 'LIFESKILLS'
+                  ? 'Ask about habits, self-discipline, communication, or emotional wellness...'
+                  : selectedMode === 'CAMPUS'
+                  ? 'Ask about your attendance, fees, exams, or timetable...'
+                  : 'Ask me anything: coding, life skills, philosophy, fitness, writing...'
+              }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

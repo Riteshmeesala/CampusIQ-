@@ -4,6 +4,7 @@ import {
   Divider, Paper, Grid, Chip
 } from '@mui/material';
 import { Close, Print, Download, VerifiedUser } from '@mui/icons-material';
+import vvituLogo from '../../assets/vvitu-logo.png';
 
 export default function FeeReceiptModal({ open, onClose, receipt }) {
   if (!receipt) return null;
@@ -47,8 +48,14 @@ export default function FeeReceiptModal({ open, onClose, receipt }) {
         >
           {/* Header */}
           <Box sx={{ textAlign: 'center', pb: 2, borderBottom: '2px solid #0f172a' }}>
-            <Typography variant="caption" sx={{ fontWeight: 800, color: '#0284c7', letterSpacing: 1.5 }}>
-              CAMPUISQ+ UNIVERSITY OF TECHNOLOGY
+            <Box
+              component="img"
+              src={vvituLogo}
+              alt="VVITU Logo"
+              sx={{ width: 48, height: 48, objectFit: 'contain', mb: 1, mx: 'auto', display: 'block' }}
+            />
+            <Typography variant="caption" sx={{ fontWeight: 800, color: '#0284c7', letterSpacing: 1.5, display: 'block' }}>
+              VASIREDDY VENKATADRI INTERNATIONAL TECHNOLOGICAL UNIVERSITY (VVITU)
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 900, color: '#0f172a', mt: 0.5 }}>
               OFFICIAL ELECTRONIC FEE RECEIPT
@@ -166,7 +173,7 @@ export default function FeeReceiptModal({ open, onClose, receipt }) {
                 Finance & Accounts Dept.
               </Typography>
               <Typography variant="caption" color="text.secondary" fontSize={10}>
-                CampusIQ+ University
+                VVITU - Vasireddy Venkatadri International Technological University
               </Typography>
             </Box>
           </Box>

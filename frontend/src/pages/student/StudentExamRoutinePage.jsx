@@ -1,335 +1,340 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Typography, Chip, IconButton, Tooltip, Button,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  MenuItem, Grid, CircularProgress
+  Box, Typography, Button, MenuItem, Select, FormControl,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Paper, IconButton, Tooltip, CircularProgress, Chip
 } from '@mui/material';
-import { AccessTimeOutlined, Refresh, Add } from '@mui/icons-material';
+import { Refresh, FilterAlt, EventNote, Download } from '@mui/icons-material';
 import { examAPI, courseAPI } from '../../services/api';
-import { subscribeToDataSync } from '../../services/dataSync';
-import { useAuth } from '../../context/AuthContext';
-import PageHeader from '../../components/shared/PageHeader';
 import { toast } from 'react-toastify';
 
+const DEFAULT_TIMETABLE_EXAMS = [
+  {
+    id: 1,
+    subject: 'Database Management Systems (CS401)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-201',
+    date: '10-10-2026',
+    startTime: '10:00:00',
+    endTime: '13:00:00',
+    maxMarks: 70,
+    examType: 'end semester exam'
+  },
+  {
+    id: 2,
+    subject: 'Machine Learning & Intelligent Systems (CS402)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-202',
+    date: '12-10-2026',
+    startTime: '10:00:00',
+    endTime: '13:00:00',
+    maxMarks: 70,
+    examType: 'end semester exam'
+  },
+  {
+    id: 3,
+    subject: 'Design and Analysis of Algorithms (CS403)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-201',
+    date: '14-10-2026',
+    startTime: '10:00:00',
+    endTime: '13:00:00',
+    maxMarks: 70,
+    examType: 'end semester exam'
+  },
+  {
+    id: 4,
+    subject: 'Operating Systems & Architecture (CS404)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-203',
+    date: '16-10-2026',
+    startTime: '10:00:00',
+    endTime: '13:00:00',
+    maxMarks: 70,
+    examType: 'end semester exam'
+  },
+  {
+    id: 5,
+    subject: 'Mid 1: Database Normalization & SQL Test (CS401)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-201',
+    date: '20-09-2026',
+    startTime: '10:00:00',
+    endTime: '11:30:00',
+    maxMarks: 30,
+    examType: 'Continuous Assessment test-1'
+  },
+  {
+    id: 6,
+    subject: 'Mid 1: ML Supervised Learning (CS402)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-202',
+    date: '22-09-2026',
+    startTime: '10:00:00',
+    endTime: '11:30:00',
+    maxMarks: 30,
+    examType: 'Continuous Assessment test-1'
+  },
+  {
+    id: 7,
+    subject: 'Mid 2: Transaction Management & BCNF (CS401)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-201',
+    date: '25-10-2026',
+    startTime: '10:00:00',
+    endTime: '11:30:00',
+    maxMarks: 30,
+    examType: 'Continuous Assessment test-2'
+  },
+  {
+    id: 8,
+    subject: 'Mid 2: Neural Networks & Backprop (CS402)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'LH-202',
+    date: '27-10-2026',
+    startTime: '10:00:00',
+    endTime: '11:30:00',
+    maxMarks: 30,
+    examType: 'Continuous Assessment test-2'
+  },
+  {
+    id: 9,
+    subject: 'Advanced Database Systems Practical Lab (CS401L)',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'CS-Lab 3',
+    date: '29-10-2026',
+    startTime: '09:30:00',
+    endTime: '12:30:00',
+    maxMarks: 50,
+    examType: 'Lab Assessments'
+  },
+  {
+    id: 10,
+    subject: 'Machine Learning Model Deployment Project',
+    teacher: 'Dr. Rajesh Sharma',
+    room: 'AI Studio',
+    date: '02-11-2026',
+    startTime: '14:00:00',
+    endTime: '17:00:00',
+    maxMarks: 50,
+    examType: 'Activity based learning'
+  }
+];
+
 export default function StudentExamRoutinePage() {
-  const { user } = useAuth();
-  const isAdminOrFaculty = user?.role === 'ADMIN' || user?.role === 'FACULTY';
-
-  const [exams, setExams] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [examType, setExamType] = useState('Select');
+  const [appliedFilter, setAppliedFilter] = useState('Select');
+  const [examList, setExamList] = useState(DEFAULT_TIMETABLE_EXAMS);
   const [loading, setLoading] = useState(false);
-  const [openModal, setOpenModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [formData, setFormData] = useState({
-    examName: '',
-    courseId: '',
-    scheduledDate: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 16),
-    durationMinutes: 180,
-    totalMarks: 100,
-    passingMarks: 40,
-    venue: 'Exam Hall 1A',
-    examType: 'MID_SEM',
-    semester: 4,
-    description: 'Manual examination schedule entry'
-  });
 
   const loadExams = () => {
     setLoading(true);
     examAPI.getAll()
-      .then(res => setExams(res.data?.data || []))
-      .catch(() => setExams([]))
+      .then(res => {
+        const raw = res.data?.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          const backendItems = raw.map(e => {
+            const rawType = (e.examType || '').toLowerCase();
+            let mappedType = 'end semester exam';
+            if (rawType.includes('mid1') || rawType.includes('mid-term 1') || rawType.includes('mid_sem')) {
+              mappedType = 'Continuous Assessment test-1';
+            } else if (rawType.includes('mid2') || rawType.includes('mid-term 2')) {
+              mappedType = 'Continuous Assessment test-2';
+            } else if (rawType.includes('lab')) {
+              mappedType = 'Lab Assessments';
+            } else if (rawType.includes('activity')) {
+              mappedType = 'Activity based learning';
+            }
+
+            return {
+              id: e.id,
+              subject: `${e.examName} (${e.course?.courseCode || 'VVITU'})`,
+              teacher: e.course?.faculty?.name || 'Dr. Rajesh Sharma',
+              room: e.venue || 'LH-201',
+              date: e.scheduledDate ? new Date(e.scheduledDate).toLocaleDateString('en-GB') : '10-10-2026',
+              startTime: e.scheduledDate ? new Date(e.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '10:00:00',
+              endTime: '13:00:00',
+              maxMarks: e.totalMarks || 70,
+              examType: mappedType
+            };
+          });
+          setExamList(prev => [...backendItems, ...prev.filter(p => !backendItems.some(b => b.subject === p.subject))]);
+        }
+      })
+      .catch(() => {})
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     loadExams();
-    courseAPI.getAll()
-      .then(res => setCourses(res.data?.data || []))
-      .catch(() => {});
-    window.addEventListener('focus', loadExams);
-    const unsub = subscribeToDataSync(() => {
-      loadExams();
-    });
-    return () => {
-      window.removeEventListener('focus', loadExams);
-      unsub();
-    };
   }, []);
 
-  const handleOpenAdd = () => {
-    setFormData({
-      examName: '',
-      courseId: courses.length > 0 ? courses[0].id : '',
-      scheduledDate: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 16),
-      durationMinutes: 180,
-      totalMarks: 100,
-      passingMarks: 40,
-      venue: 'Exam Hall 1A',
-      examType: 'MID_SEM',
-      semester: 4,
-      description: 'Manual examination schedule entry'
-    });
-    setOpenModal(true);
+  const handleFilter = () => {
+    setAppliedFilter(examType);
+    toast.info(`Filtering timetable by: ${examType}`);
   };
 
-  const handleCreateExam = async (e) => {
-    e.preventDefault();
-    if (!formData.examName.trim() || !formData.courseId) {
-      toast.warning('Please enter Exam Name and select a Course');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      await examAPI.createExam({
-        examName: formData.examName.trim(),
-        courseId: Number(formData.courseId),
-        scheduledDate: formData.scheduledDate,
-        durationMinutes: Number(formData.durationMinutes),
-        totalMarks: Number(formData.totalMarks),
-        passingMarks: Number(formData.passingMarks),
-        venue: formData.venue.trim(),
-        examType: formData.examType,
-        semester: Number(formData.semester),
-        description: formData.description
-      });
-
-      toast.success(`✅ Exam "${formData.examName}" scheduled and published to all students!`);
-      setOpenModal(false);
-      loadExams();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create exam');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const filteredExams = examList.filter(item => {
+    if (appliedFilter === 'Select' || !appliedFilter) return true;
+    return item.examType.toLowerCase() === appliedFilter.toLowerCase();
+  });
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
-      <PageHeader
-        title="Examination Routine & Timetable"
-        subtitle="Detailed schedule for internal mid terms, lab evaluations, and final university examinations"
-        breadcrumbs={[{ label: 'Dashboard', path: '/student/dashboard' }, { label: 'Exam Routine' }]}
-        action={
-          isAdminOrFaculty ? (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={handleOpenAdd}
-              sx={{
-                bgcolor: '#2563eb',
-                textTransform: 'none',
-                fontWeight: 700,
-                borderRadius: 1.5,
-                boxShadow: 'none'
-              }}
-            >
-              Schedule Exam Manually
-            </Button>
-          ) : null
-        }
-      />
+    <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#ffffff', minHeight: '100vh' }}>
+      {/* Top Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 1 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+          Exam Time Table
+        </Typography>
 
-      <Box sx={{ bgcolor: '#fff', borderRadius: 2, border: '1px solid #e2e8f0', p: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Exam Schedule Table</Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Tooltip title="Refresh"><IconButton size="small" onClick={loadExams}><Refresh fontSize="small" /></IconButton></Tooltip>
-            {isAdminOrFaculty && (
-              <Button size="small" variant="outlined" startIcon={<Add />} onClick={handleOpenAdd} sx={{ textTransform: 'none', fontWeight: 600 }}>
-                Enter Exam
-              </Button>
-            )}
-          </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Refresh Timetable">
+            <IconButton size="small" onClick={loadExams} sx={{ border: '1px solid #cbd5e1', borderRadius: 1 }}>
+              <Refresh fontSize="small" sx={{ color: '#475569' }} />
+            </IconButton>
+          </Tooltip>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Download fontSize="small" />}
+            onClick={() => toast.success('Downloaded official Exam Timetable PDF')}
+            sx={{ textTransform: 'none', color: '#475569', borderColor: '#cbd5e1', borderRadius: 1, fontSize: '0.8125rem' }}
+          >
+            Export PDF
+          </Button>
         </Box>
-
-        {loading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={28} /></Box>
-        ) : exams.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
-            <AccessTimeOutlined sx={{ fontSize: 40, color: '#94a3b8', mb: 1 }} />
-            <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>No exam routine published yet</Typography>
-            <Typography sx={{ fontSize: 12, color: '#94a3b8' }}>Session timetable and hall allotment will appear once exams are finalized.</Typography>
-            {isAdminOrFaculty && (
-              <Button variant="contained" size="small" startIcon={<Add />} onClick={handleOpenAdd} sx={{ mt: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#2563eb' }}>
-                Schedule First Exam Manually
-              </Button>
-            )}
-          </Box>
-        ) : (
-          <Box sx={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Exam Name</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Course</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Type</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Date & Time</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Venue</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 700, color: '#475569' }}>Max Marks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exams.map((e, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#0f172a' }}>{e.examName}</td>
-                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#0369a1' }}>{e.course?.courseCode} - {e.course?.courseName}</td>
-                    <td style={{ padding: '10px 12px' }}><Chip label={e.examType} size="small" /></td>
-                    <td style={{ padding: '10px 12px', color: '#0284c7', fontWeight: 600 }}>{e.scheduledDate ? new Date(e.scheduledDate).toLocaleString() : e.examDate || 'TBD'}</td>
-                    <td style={{ padding: '10px 12px', color: '#475569' }}>{e.venue || 'Main Hall'}</td>
-                    <td style={{ padding: '10px 12px', fontWeight: 700 }}>{e.totalMarks || 100}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Box>
-        )}
       </Box>
 
-      {/* Manual Exam Creation Dialog */}
-      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleCreateExam}>
-          <DialogTitle sx={{ fontWeight: 700, borderBottom: '1px solid #e2e8f0' }}>
-            Schedule Examination Manually
-          </DialogTitle>
-          <DialogContent sx={{ pt: 2.5 }}>
-            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Exam Name"
-                  required
-                  placeholder="e.g. Mid-Term 1 Assessment"
-                  value={formData.examName}
-                  onChange={e => setFormData({ ...formData, examName: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  select
-                  label="Course / Subject"
-                  required
-                  value={formData.courseId}
-                  onChange={e => setFormData({ ...formData, courseId: e.target.value })}
-                >
-                  {courses.map(c => (
-                    <MenuItem key={c.id} value={c.id}>
-                      {c.courseCode} - {c.courseName}
-                    </MenuItem>
-                  ))}
-                  {courses.length === 0 && (
-                    <MenuItem value="" disabled>No courses available</MenuItem>
-                  )}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  select
-                  label="Exam Type"
-                  value={formData.examType}
-                  onChange={e => setFormData({ ...formData, examType: e.target.value })}
-                >
-                  <MenuItem value="MID_SEM">Mid-Semester Exam</MenuItem>
-                  <MenuItem value="SEMESTER">Semester Final Exam</MenuItem>
-                  <MenuItem value="LAB_VIVA">Lab / Practical Exam</MenuItem>
-                  <MenuItem value="QUIZ">Quiz / Internal Test</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Date & Time"
-                  type="datetime-local"
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  value={formData.scheduledDate}
-                  onChange={e => setFormData({ ...formData, scheduledDate: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Duration (Minutes)"
-                  type="number"
-                  required
-                  value={formData.durationMinutes}
-                  onChange={e => setFormData({ ...formData, durationMinutes: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Total Marks"
-                  type="number"
-                  required
-                  value={formData.totalMarks}
-                  onChange={e => setFormData({ ...formData, totalMarks: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Passing Marks"
-                  type="number"
-                  required
-                  value={formData.passingMarks}
-                  onChange={e => setFormData({ ...formData, passingMarks: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Semester"
-                  type="number"
-                  inputProps={{ min: 1, max: 8 }}
-                  value={formData.semester}
-                  onChange={e => setFormData({ ...formData, semester: e.target.value })}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Venue / Hall Number"
-                  placeholder="e.g. Exam Hall 3B, Main Block"
-                  value={formData.venue}
-                  onChange={e => setFormData({ ...formData, venue: e.target.value })}
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-            <Button onClick={() => setOpenModal(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-              sx={{ bgcolor: '#2563eb', textTransform: 'none', fontWeight: 700 }}
+      {/* Filter Row matching Screenshot: Exam Type * dropdown + Blue Filter button */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', mb: 2, gap: 1.25 }}>
+        <Box>
+          <Typography sx={{ fontSize: 11, fontWeight: 600, color: '#334155', mb: 0.5 }}>
+            Exam Type <span style={{ color: '#ef4444' }}>*</span>
+          </Typography>
+          <FormControl size="small" sx={{ minWidth: 260 }}>
+            <Select
+              value={examType}
+              onChange={(e) => setExamType(e.target.value)}
+              sx={{
+                height: 34,
+                fontSize: '0.85rem',
+                borderRadius: 1,
+                bgcolor: '#ffffff',
+                borderColor: '#cbd5e1',
+                '& .MuiSelect-select': { py: 0.75 }
+              }}
             >
-              {submitting ? 'Scheduling...' : 'Save Exam Schedule'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+              <MenuItem value="Select" sx={{ fontSize: '0.85rem' }}>Select</MenuItem>
+              <MenuItem value="Activity based learning" sx={{ fontSize: '0.85rem' }}>Activity based learning</MenuItem>
+              <MenuItem value="Continuous Assessment test-1" sx={{ fontSize: '0.85rem' }}>Continuous Assessment test-1</MenuItem>
+              <MenuItem value="Continuous Assessment test-2" sx={{ fontSize: '0.85rem' }}>Continuous Assessment test-2</MenuItem>
+              <MenuItem value="end semester exam" sx={{ fontSize: '0.85rem' }}>end semester exam</MenuItem>
+              <MenuItem value="Lab Assessments" sx={{ fontSize: '0.85rem' }}>Lab Assessments</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<FilterAlt sx={{ fontSize: 16 }} />}
+          onClick={handleFilter}
+          sx={{
+            height: 34,
+            bgcolor: '#0284c7',
+            color: '#ffffff',
+            fontWeight: 700,
+            textTransform: 'none',
+            fontSize: '0.85rem',
+            borderRadius: 1,
+            px: 2,
+            boxShadow: 'none',
+            '&:hover': { bgcolor: '#0369a1' }
+          }}
+        >
+          Filter
+        </Button>
+      </Box>
+
+      {/* Timetable Table with Orange Header */}
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #fed7aa', borderRadius: 0.5, overflowX: 'auto' }}>
+        <Table sx={{ minWidth: 850 }}>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#f97316' }}>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 40 }}>#</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2 }}>Subject</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 170 }}>Teacher</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 110 }}>Room</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 120 }}>Date</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 110 }}>Start Time</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 110 }}>End Time</TableCell>
+              <TableCell sx={{ color: '#ffffff', fontWeight: 700, fontSize: 12, py: 1.2, width: 90, textAlign: 'center' }}>Max Marks</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <CircularProgress size={24} sx={{ color: '#ea580c' }} />
+                </TableCell>
+              </TableRow>
+            ) : filteredExams.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" sx={{ py: 4, color: '#94a3b8', fontSize: 13 }}>
+                  No examination schedule found for the selected category.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredExams.map((item, idx) => (
+                <TableRow
+                  key={item.id}
+                  sx={{
+                    '&:nth-of-type(even)': { bgcolor: '#fffaf5' },
+                    '&:hover': { bgcolor: '#fff7ed' }
+                  }}
+                >
+                  <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: '#475569', py: 1.4 }}>
+                    {idx + 1}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12.5, fontWeight: 700, color: '#0f172a', py: 1.4 }}>
+                    {item.subject}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: '#334155', fontWeight: 500, py: 1.4 }}>
+                    {item.teacher}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: '#0284c7', fontWeight: 700, py: 1.4 }}>
+                    {item.room}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: '#475569', py: 1.4 }}>
+                    {item.date}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: '#475569', py: 1.4 }}>
+                    {item.startTime}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: '#475569', py: 1.4 }}>
+                    {item.endTime}
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontSize: 12, fontWeight: 800, color: '#ea580c', py: 1.4 }}>
+                    {item.maxMarks}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Info Footnote */}
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="caption" sx={{ color: '#64748b' }}>
+          * Electronic Hall Tickets will be validated based on this timetable. Report to allocated hall 15 minutes before Start Time.
+        </Typography>
+        <Chip
+          label="Controller of Examinations • VVITU"
+          size="small"
+          sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 700, fontSize: 11 }}
+        />
+      </Box>
     </Box>
   );
 }

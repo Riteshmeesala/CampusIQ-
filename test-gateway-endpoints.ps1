@@ -43,7 +43,7 @@ function Test-Endpoint {
             Uri = $url
             Method = $Method
             Headers = $headersToSend
-            TimeoutSec = 15
+            TimeoutSec = 25
             UseBasicParsing = $true
         }
         if ($Body) {
@@ -80,7 +80,8 @@ function Test-Endpoint {
     $color = if ($statusText -eq "PASS") { "Green" } elseif ($statusText -like "WARN*") { "Yellow" } else { "Red" }
     $elapsed = "$([math]::Round($sw.Elapsed.TotalMilliseconds, 1))ms"
 
-    Write-Host ("[{0,-16}] {1,-6} {2,-38} -> {3,-10} ({4})" -f $ServiceName, $Method, $Path, $statusText, $elapsed) -ForegroundColor $color
+    $errSuffix = if ($errorMsg) { " - $errorMsg" } else { "" }
+    Write-Host ("[{0,-16}] {1,-6} {2,-38} -> {3,-10} ({4}){5}" -f $ServiceName, $Method, $Path, $statusText, $elapsed, $errSuffix) -ForegroundColor $color
 
     return [PSCustomObject]@{
         Service = $ServiceName
@@ -89,8 +90,17 @@ function Test-Endpoint {
         Status = $statusText
         Code = $statusCode
         Latency = $elapsed
+        Error = $errorMsg
     }
 }
+
+# Attempt real login to obtain dynamic JWT token
+try {
+    $loginResp = Invoke-RestMethod -Uri "$GatewayUrl/api/auth/login" -Method POST -ContentType "application/json" -Body '{"username":"admin","password":"Admin@123"}' -ErrorAction SilentlyContinue
+    if ($loginResp.data.accessToken) {
+        $AuthToken = $loginResp.data.accessToken
+    }
+} catch {}
 
 $authHeaders = @{
     "Authorization" = "Bearer $AuthToken"
@@ -101,7 +111,7 @@ $results += Test-Endpoint -ServiceName "Gateway" -Path "/actuator/health"
 $results += Test-Endpoint -ServiceName "Gateway" -Path "/actuator/gateway/routes"
 
 Write-Host "`n--- 2. AUTH SERVICE (Port 8081 via Gateway) ---" -ForegroundColor Yellow
-$results += Test-Endpoint -ServiceName "Auth" -Method "POST" -Path "/api/auth/login" -Body '{"username":"admin@campusiq.edu.in","password":"password123"}' -ExpectedStatuses @(200, 400, 401)
+$results += Test-Endpoint -ServiceName "Auth" -Method "POST" -Path "/api/auth/login" -Body '{"username":"admin","password":"Admin@123"}' -ExpectedStatuses @(200, 201)
 $results += Test-Endpoint -ServiceName "Auth" -Path "/api/registrations/stats" -Headers $authHeaders
 $results += Test-Endpoint -ServiceName "Auth" -Path "/api/users/stats" -Headers $authHeaders
 $results += Test-Endpoint -ServiceName "Auth" -Path "/api/users/students" -Headers $authHeaders

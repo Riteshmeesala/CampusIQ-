@@ -8,9 +8,8 @@ echo.
 cd /d "%~dp0"
 
 if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
-        if "%%a"=="XAI_API_KEY" set "XAI_API_KEY=%%b"
-        if "%%a"=="GROK_API_KEY" set "GROK_API_KEY=%%b"
+    for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do (
+        if not "%%a"=="" set "%%a=%%b"
     )
 )
 

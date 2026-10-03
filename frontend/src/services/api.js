@@ -9,6 +9,7 @@ import { broadcastDataChange, DATA_SYNC_EVENTS } from './dataSync';
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     try {
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const params = new URLSearchParams(window.location.search);
       const queryApi = params.get('apiUrl');
       if (queryApi) {
@@ -17,7 +18,13 @@ export const getApiBaseUrl = () => {
         return clean;
       }
       const saved = localStorage.getItem('campusiq_api_url');
-      if (saved) return saved;
+      if (saved) {
+        if (isLocalHost && (saved.includes('onrender.com') || saved.includes('vercel.app'))) {
+          localStorage.removeItem('campusiq_api_url');
+        } else {
+          return saved;
+        }
+      }
     } catch {
       // ignore
     }
@@ -150,6 +157,7 @@ export const feeAPI = {
   verifyPayment:      (data)  => api.post('/fees/verify-payment', data),
   getReceipts:        ()      => api.get('/fees/receipts'),
   getConfig:          ()      => api.get('/fees/config'),
+  updateConfig:       (data)  => api.post('/fees/config', data),
   updateFee:          (id, data) => api.put(`/fees/${id}`, data),
   updateFeeStatus:    (id, status) => api.patch(`/fees/${id}/status`, { status }),
   deleteFee:          (id)    => api.delete(`/fees/${id}`),
@@ -200,7 +208,7 @@ export const notificationAPI = {
 
 // POST /chatbot/chat and session management (ChatGPT / Gemini style)
 export const chatbotAPI = {
-  sendMessage:        (message, history, sessionId) => api.post('/chatbot/chat', { message, history: history || [], sessionId }),
+  sendMessage:        (message, history, sessionId, mode) => api.post('/chatbot/chat', { message, history: history || [], sessionId, mode: mode || 'FREE' }),
   getSessions:        ()                            => api.get('/chatbot/sessions'),
   getSessionMessages: (sessionId)                   => api.get(`/chatbot/sessions/${sessionId}`),
   createSession:      (title)                       => api.post('/chatbot/sessions', { title }),
@@ -234,7 +242,7 @@ export const timetableAPI = {
 export const aiAPI = {
   getMyPerformance:      ()                         => api.get('/analytics/performance/my'),
   getStudentPerformance: (studentId)                => api.get(`/analytics/performance/student/${studentId}`),
-  chat:                  (message, history, sessionId) => api.post('/chatbot/chat', { message, history: history || [], sessionId }),
+  chat:                  (message, history, sessionId, mode) => api.post('/chatbot/chat', { message, history: history || [], sessionId, mode: mode || 'FREE' }),
   getSessions:        ()                            => api.get('/chatbot/sessions'),
   getSessionMessages: (sessionId)                   => api.get(`/chatbot/sessions/${sessionId}`),
   createSession:      (title)                       => api.post('/chatbot/sessions', { title }),
@@ -245,6 +253,22 @@ export const aiAPI = {
 };
 
 export const notifAPI = notificationAPI;
+
+// ── STUDENT SERVICES ENDPOINTS ─────────────────────────────────────────────
+export const internshipAPI = {
+  getMyInternships:   ()     => api.get('/projects/internships/my'),
+  registerInternship: (data) => api.post('/projects/internships', data),
+};
+
+export const submissionAPI = {
+  getMySubmissions: ()     => api.get('/projects/submissions/my'),
+  createSubmission: (data) => api.post('/projects/submissions', data),
+};
+
+export const busTrackingAPI = {
+  getVehicleDetails: (vehicleNo) => api.get(`/campus-services/bus/${vehicleNo || 'TS28M9219'}`),
+  getMyBus:          ()          => api.get('/campus-services/bus/my'),
+};
 
 
 // GET /users/students, /users/faculty, /users/{id}, /users/stats
@@ -331,18 +355,21 @@ export const announcementAPI = {
   sendEvent:        (data) => api.post('/announcements/send/event', data),
 };
 
-// ── STUDENT REGISTRATION SCANNER & EXCEL IMPORT ──
+// ── OFFICIAL STUDENT REGISTRATION & SEGREGATION ──
 export const registrationAPI = {
-  submitPublicRegistration: (data) => api.post('/registrations/public', data),
-  getAllRegistrations:      ()     => api.get('/registrations/all'),
-  getRegistrationStats:     ()     => api.get('/registrations/stats'),
-  importExcelStudents:      (data) => api.post('/registrations/import-excel', data),
-  deleteRegistration:       (id)   => api.delete(`/registrations/${id}`),
+  initiateRegistration:    (data) => api.post('/registrations/initiate', data),
+  resendOtp:               (data) => api.post('/registrations/resend-otp', data),
+  completeRegistration:    (data) => api.post('/registrations/complete', data),
+  submitPublicRegistration:(data) => api.post('/registrations/public', data),
+  getAllRegistrations:     ()     => api.get('/registrations/all'),
+  getRegistrationStats:    ()     => api.get('/registrations/stats'),
+  deleteRegistration:      (id)   => api.delete(`/registrations/${id}`),
 };
 
 // ── STUDENT LEAVE MANAGEMENT ──
 export const leaveAPI = {
   getAll:           ()                      => api.get('/leaves'),
+  getAllLeaves:     ()                      => api.get('/leaves'),
   getMyLeaves:      ()                      => api.get('/leaves/my'),
   applyLeave:       (data)                  => api.post('/leaves/apply', data),
   updateStatus:     (id, status, remarks)   => api.put(`/leaves/${id}/status`, { status, remarks }),
@@ -351,17 +378,21 @@ export const leaveAPI = {
 // ── CERTIFICATES ──
 export const certificateAPI = {
   getAll:             ()      => api.get('/certificates'),
-  getMyCertificates:  ()      => api.get('/certificates'),
-  requestCertificate: (data)  => api.post('/certificates/request', data),
+  getAllCertificates: ()      => api.get('/certificates'),
+  getMyCertificates:  ()      => api.get('/certificates/my'),
+  requestCertificate: (data)  => api.post('/certificates/apply', data),
+  applyCertificate:   (data)  => api.post('/certificates/apply', data),
   verifyCertificate:  (id)    => api.get(`/certificates/verify/${id}`),
 };
 
 // ── GRIEVANCES ──
 export const grievanceAPI = {
   getAll:           ()                => api.get('/grievances'),
-  getMyGrievances:  ()                => api.get('/grievances'),
+  getAllGrievances: ()                => api.get('/grievances'),
+  getMyGrievances:  ()                => api.get('/grievances/my'),
   submitGrievance:  (data)            => api.post('/grievances/submit', data),
   resolveGrievance: (id, response)    => api.put(`/grievances/${id}/resolve`, { response }),
+  updateStatus:     (id, status, resp) => api.patch(`/grievances/${id}/status`, { status, response: resp }),
 };
 
 // ── MENTORING & COUNSELING ──
@@ -381,11 +412,14 @@ export const placementAPI = {
 
 // ── DIGITAL LIBRARY ──
 export const libraryAPI = {
-  getOverview:    ()               => api.get('/library'),
-  getBooks:       (query)          => api.get('/library/books', { params: { query } }),
-  getBorrowed:    ()               => api.get('/library/borrowed'),
-  renewBook:      (issueId)        => api.post(`/library/renew/${issueId}`),
-  getInvoices:    ()               => api.get('/library/invoices'),
+  getOverview:      ()               => api.get('/library'),
+  getBooks:         (query)          => api.get('/library/books', { params: { query } }),
+  searchBooks:      (params)         => api.get('/library/search', { params }),
+  getNewArrivals:   (params)         => api.get('/library/new-arrivals', { params }),
+  getInvoices:      (params)         => api.get('/library/invoices', { params }),
+  getMyIssuedBooks: ()               => api.get('/library/my-books'),
+  getBorrowed:      ()               => api.get('/library/borrowed'),
+  renewBook:        (issueId)        => api.post(`/library/renew/${issueId}`),
 };
 
 // ── ACADEMIC PROJECTS ──

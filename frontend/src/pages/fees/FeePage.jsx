@@ -66,9 +66,9 @@ export default function FeePage() {
   const [manualStudentRoll, setManualStudentRoll] = useState('');
 
   // Razorpay Gateway Configuration States
-  const [razorpayConfig, setRazorpayConfig] = useState({ keyId: 'rzp_test_Th4Zu9hPWOhfeY', testMode: true });
-  const [keyInput, setKeyInput] = useState('rzp_test_Th4Zu9hPWOhfeY');
-  const [secretInput, setSecretInput] = useState('SbOd4QyJx1Kh2pjEIe3NPNN6');
+  const [razorpayConfig, setRazorpayConfig] = useState({ keyId: '', testMode: true, hasValidLiveKeys: false });
+  const [keyInput, setKeyInput] = useState('');
+  const [secretInput, setSecretInput] = useState('');
   const [savingKeys, setSavingKeys] = useState(false);
 
   const loadData = async () => {
@@ -98,23 +98,27 @@ export default function FeePage() {
     }
   };
 
-  const handleSaveKeys = async () => {
-    if (!keyInput.trim()) {
-      toast.warning('Please enter a valid Razorpay Key ID (e.g. rzp_test_...)');
-      return;
-    }
+  const handleSaveKeys = async (overrideKey = null, overrideSecret = null) => {
+    const targetKey = overrideKey !== null ? overrideKey : keyInput.trim();
+    const targetSecret = overrideSecret !== null ? overrideSecret : secretInput.trim();
+
     setSavingKeys(true);
     try {
       const res = await feeAPI.updateConfig({
-        keyId: keyInput.trim(),
-        keySecret: secretInput.trim()
+        keyId: targetKey,
+        keySecret: targetSecret
       });
       if (res.data?.data) {
         setRazorpayConfig(res.data.data);
+        setKeyInput(res.data.data.keyId || '');
       }
-      toast.success('Razorpay Test Mode API keys saved successfully!');
+      if (targetKey) {
+        toast.success('Razorpay API keys applied successfully!');
+      } else {
+        toast.info('Switched to simulated Razorpay sandbox test mode');
+      }
     } catch {
-      toast.error('Failed to update Razorpay keys');
+      toast.error('Failed to update Razorpay configuration');
     } finally {
       setSavingKeys(false);
     }
@@ -808,7 +812,7 @@ export default function FeePage() {
               <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                 <Button
                   variant="contained"
-                  onClick={handleSaveKeys}
+                  onClick={() => handleSaveKeys()}
                   disabled={savingKeys}
                   startIcon={savingKeys ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <Security sx={{ fontSize: 16 }} />}
                   sx={{ bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' }, borderRadius: '8px', textTransform: 'none', fontWeight: 700, px: 2.5 }}
@@ -818,12 +822,13 @@ export default function FeePage() {
                 <Button
                   variant="outlined"
                   onClick={() => {
-                    setKeyInput('rzp_test_Th4Zu9hPWOhfeY');
-                    setSecretInput('SbOd4QyJx1Kh2pjEIe3NPNN6');
+                    setKeyInput('');
+                    setSecretInput('');
+                    handleSaveKeys('', '');
                   }}
                   sx={{ borderRadius: '8px', borderColor: '#cbd5e1', color: '#334155', textTransform: 'none', fontWeight: 600 }}
                 >
-                  Reset to Verified Key
+                  Reset to Test Sandbox Mode
                 </Button>
               </Box>
             </Paper>

@@ -18,13 +18,23 @@ public interface StudentRegistrationRepository extends JpaRepository<StudentRegi
 
     Optional<StudentRegistration> findByEmail(String email);
 
-    Optional<StudentRegistration> findByUsername(String username);
+    Optional<StudentRegistration> findByEnrollmentNumberIgnoreCase(String enrollmentNumber);
+
+    Optional<StudentRegistration> findByEmailIgnoreCase(String email);
+
+    Optional<StudentRegistration> findByUsernameIgnoreCase(String username);
 
     boolean existsByEnrollmentNumber(String enrollmentNumber);
 
+    boolean existsByEnrollmentNumberIgnoreCase(String enrollmentNumber);
+
     boolean existsByEmail(String email);
 
+    boolean existsByEmailIgnoreCase(String email);
+
     boolean existsByUsername(String username);
+
+    boolean existsByUsernameIgnoreCase(String username);
 
     long countByStatus(String status);
 }
