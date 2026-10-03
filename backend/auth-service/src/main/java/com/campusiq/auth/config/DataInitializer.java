@@ -74,6 +74,36 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Initialized default Student account: 24CS001 / Student@123");
         }
 
+        // 4. Student Ritesh Meesala (User's specific student account)
+        User ritesh = userRepository.findByUsername("23bq1a1268")
+                .or(() -> userRepository.findByEmail("23bq1a1268@vvit.net"))
+                .or(() -> userRepository.findByUsername("23BQ1A1268"))
+                .or(() -> userRepository.findByUsername("Ritesh@0512"))
+                .orElse(null);
+        if (ritesh == null) {
+            userRepository.save(User.builder()
+                    .username("23bq1a1268")
+                    .name("Meesala Ritesh")
+                    .email("23bq1a1268@vvit.net")
+                    .password(passwordEncoder.encode("051227Ritesh@#"))
+                    .role(Role.STUDENT)
+                    .phoneNumber("9000000000")
+                    .department("Information Technology")
+                    .enrollmentNumber("23BQ1A1268")
+                    .semester(4)
+                    .section("Section A")
+                    .active(true)
+                    .build());
+            log.info("Initialized student account: 23bq1a1268 / 051227Ritesh@#");
+        } else {
+            ritesh.setPassword(passwordEncoder.encode("051227Ritesh@#"));
+            ritesh.setUsername("23bq1a1268");
+            ritesh.setEmail("23bq1a1268@vvit.net");
+            ritesh.setActive(true);
+            userRepository.save(ritesh);
+            log.info("Synced student account password and username for 23bq1a1268");
+        }
+
         log.info("Stakeholder verification completed.");
     }
 }
